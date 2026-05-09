@@ -20,12 +20,24 @@
 // SOFTWARE.
 
 #include "define.hpp"
+#include "functions.hpp"
 
 #include <cstdlib>
 #include <iostream>
 #include <vector>
 #include <string>
 #include <fstream>
+
+struct Commands {
+enum class add {
+    ui8,
+    ui16,
+    ui32,
+    ui64,
+    flt32,
+    flt64,
+};
+};
 
 using chars = std::vector<char>;
 using charsIter = chars::iterator;
@@ -53,6 +65,15 @@ static inline auto readAll(const std::string& filename) -> chars {
 static inline auto usage(const std::string& str) -> void {
     std::cout << str + " <path>" << std::endl;
     exit(EXIT_FAILURE);
+}
+
+static inline void executeLine(const chars& cs, SizeType& i) {
+    ui32 command = *(const ui32*)cs.data();
+    chars args(
+        cs.data() + sizeof(ui32),
+        cs.data() + cs.size()
+    );
+    functions[command](args.data(), i);
 }
 
 static inline auto execute(chars& cs) -> void {
@@ -95,7 +116,9 @@ static inline auto execute(chars& cs) -> void {
         temp.clear();
     }
 
-    Functions::printLines(lines); // TODO
+    // Functions::printLines(lines); // TODO
+    for (SizeType i = 0; i < lines.size(); )
+        executeLine(lines[i], i);
 }
 
 auto main(int argc, char** _argv) -> int {
@@ -121,4 +144,3 @@ auto main(int argc, char** _argv) -> int {
 
     return 0;
 }
-

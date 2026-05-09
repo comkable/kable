@@ -73,7 +73,10 @@
     typedef int_least32_t  i32Least;
     typedef int_least64_t  i64Least;
 
-    typedef ui32Least SizeType;
+    typedef float float32;
+    typedef double float64;
+
+    typedef ui32 SizeType;
 
     static ui8 sizeOfSizeType = (ui8)sizeof(SizeType);
 #endif
