@@ -34,25 +34,25 @@ using Reg = ui8;
 static constexpr ui8 sizeofLocation = sizeof(Location);
 
 #if 1 // regs
-    ui8 regByte1Number1;
-    ui8 regByte1Number2;
-    ui8 regByte1Number3;
-    ui8 regByte1Number4;
+    ui8 regByte1Number1 = 0;
+    ui8 regByte1Number2 = 0;
+    ui8 regByte1Number3 = 0;
+    ui8 regByte1Number4 = 0;
 
-    ui16 regByte2Number1;
-    ui16 regByte2Number2;
-    ui16 regByte2Number3;
-    ui16 regByte2Number4;
+    ui16 regByte2Number1 = 0;
+    ui16 regByte2Number2 = 0;
+    ui16 regByte2Number3 = 0;
+    ui16 regByte2Number4 = 0;
 
-    ui32 regByte4Number1;
-    ui32 regByte4Number2;
-    ui32 regByte4Number3;
-    ui32 regByte4Number4;
+    ui32 regByte4Number1 = 0;
+    ui32 regByte4Number2 = 0;
+    ui32 regByte4Number3 = 0;
+    ui32 regByte4Number4 = 0;
 
-    ui64 regByte8Number1;
-    ui64 regByte8Number2;
-    ui64 regByte8Number3;
-    ui64 regByte8Number4;
+    ui64 regByte8Number1 = 0;
+    ui64 regByte8Number2 = 0;
+    ui64 regByte8Number3 = 0;
+    ui64 regByte8Number4 = 0;
 #endif
 
 static inline void regWrite(void* data, Reg reg) {

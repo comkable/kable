@@ -68,31 +68,27 @@ static inline auto usage(const std::string& str) -> void {
 }
 
 static inline void executeLine(const chars& cs, SizeType& i) {
-    ui32 command = *(const ui32*)cs.data();
-    chars args(
-        cs.data() + sizeof(ui32),
-        cs.data() + cs.size()
-    );
-    functions[command](args.data(), i);
+    const void* dataPtr = cs.data();
+    const ui32 command = *static_cast<const ui32*>(dataPtr);
+
+    const char* argsPtr = static_cast<const char*>(dataPtr) + sizeof(ui32);
+    functions[command](argsPtr, i);
 }
 
-static inline auto execute(chars& cs) -> void {
-    std::vector<chars> lines; // different lines
-    // lines.resize(cs.size() / 10 + 10);
+static inline void execute(chars& cs) {
+    std::vector<chars> lines;
     chars temp;
-    charsIter begin, end;
-    begin = cs.begin();
-    end = cs.end();
+    auto begin = cs.begin();
+    auto end = cs.end();
 
     struct Functions {
-        static auto printLines(const std::vector<chars>& lines) -> void {
+        static void printLines(const std::vector<chars>& lines) {
             SizeType lineNum = 0;
-            std::string str;
-            for (chars cs : lines) {
+            for (const auto& line : lines) {
                 lineNum++;
-                std::cout << "line " + std::to_string(lineNum) + " : ";
-                for (char c : cs) {
-                    str = std::to_string(static_cast<ui8>(c));
+                std::cout << "line " << lineNum << " : ";
+                for (char c : line) {
+                    std::string str = std::to_string(static_cast<ui8>(c));
                     std::cout << str;
                     for (ui8 i = 0; i < 4 - str.size(); i++)
                         std::cout << " ";
@@ -103,42 +99,31 @@ static inline auto execute(chars& cs) -> void {
         }
     };
 
-    for (; begin != end; ) {
+    while (begin != end) {
         ui8 num = static_cast<ui8>(*begin);
-        begin++;
+        ++begin;
 
-        for (; num > 0 && begin != end; num--) {
+        for (; num > 0 && begin != end; --num) {
             temp.push_back(*begin);
-            begin++;
+            ++begin;
         }
 
-        lines.push_back(temp);
-        temp.clear();
+        lines.push_back(std::move(temp));
     }
 
-    // Functions::printLines(lines); // TODO
-    for (SizeType i = 0; i < lines.size(); )
+    // Functions::printLines(lines);
+    for (SizeType i = 0; i < lines.size(); ) {
         executeLine(lines[i], i);
+    }
 }
 
-auto main(int argc, char** _argv) -> int {
-    std::vector<std::string> argv;
-    for (size_t index = 0; index < argc; ++index)
-        argv.push_back(std::string(_argv[index]));
+int main(int argc, char** _argv) {
+    std::vector<std::string> argv(_argv, _argv + argc);
 
     if (argv.size() < 2)
         usage(argv[0]);
 
-    std::string inputFile;
-
-    for (size_t index = 1; index < argv.size(); ++index) {
-        auto& str = argv[index];
-        inputFile = str;
-    }
-
-    if (inputFile.empty())
-        usage(argv[0]);
-
+    std::string inputFile = argv[1];
     chars cs = readAll(inputFile);
     execute(cs);
 
