@@ -82,7 +82,7 @@ static inline void execute(chars& cs) {
     auto end = cs.end();
 
     struct Functions {
-        static void printLines(const std::vector<chars>& lines) {
+        static auto printLines(const std::vector<chars>& lines) -> void {
             SizeType lineNum = 0;
             for (const auto& line : lines) {
                 lineNum++;

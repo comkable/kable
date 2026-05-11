@@ -76,27 +76,31 @@ public:
     }
 };
 
+class ASTError : public Error {
+public:
+    ASTError(std::string msg) {
+        this->name = "ASTError";
+        this->msg = msg;
+    }
+};
+
 enum Type: uint16_t {
-    IF, ELSE, EXPR, WHILE, ELIF,
-    DIGITS,
-    IDENTIFIER,
+    IF, ELSE, WHILE,
+    DIGITS, IDENTIFIER,
     END,
-    BIGGER, SMALLER, EQUALS, EQUAL, AND, OR, NOT,
-    BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
-    EACH_AND, EACH_OR, EACH_NOT, EACH_XOR,
-    ADD, SUB, MUL, DIV, MOD,
+    OPERATOR,
+        BIGGER, SMALLER, EQUALS, EQUAL, AND, OR, NOT,
+        BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
+        EACH_AND, EACH_OR, EACH_NOT, EACH_XOR,
+        ADD, SUB, MUL, DIV, MOD,
     FUNCTION,
-    LEFT_PAREN,
-    RIGHT_PAREN,
-    LEFT_BRACE,
-    RIGHT_BRACE,
+        LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
     SEMICOLON,
-    COMMA, FUNCTIONCALL,
+    COMMA,
     PARAMS, BODY, TYPES,
-    AT, RETURN, UNAT,
+    AT, RETURN,
     INCLUDE,
-    // ONE, TWO,
-    STRING, CHAR,
+        STRING, CHAR, FLOAT, EXPR, // TODO
     UNKNOWN
 };
 
@@ -115,6 +119,78 @@ struct Token {
 
 using chars = std::vector<char>;
 using Tokens = std::vector<Token>;
+
+class AST {
+    using ASTs = std::vector<AST>;
+private:
+    ASTs asts;
+    std::string str;
+    Type type;
+public:
+    AST(const ASTs& asts, const std::string& str, Type type) : asts(asts), str(str), type(type) {}
+
+    static auto turn(const Tokens& tokens) -> AST {
+        struct Functions {
+            Tokens& tokens;
+            SizeType pos = 0;
+
+            Functions(const Tokens& tokens) : tokens(const_cast<Tokens&>(tokens)) {}
+
+            auto match(Type type) -> bool {
+                if (tokens[pos].head.type == type) {
+                    pos++;
+                    return true;
+                }
+                return false;
+            }
+
+            auto check(Type type) -> bool {
+                return tokens[pos].head.type == type; // isEqual
+            }
+
+            auto matchValue() -> bool {
+                return match(DIGITS) || match(STRING) || match(CHAR) || match(FLOAT) || match(OPERATOR);
+            }
+
+            auto checkValue() -> bool {
+                return check(DIGITS) || check(STRING) || check(CHAR) || check(FLOAT) || check(OPERATOR);
+            }
+
+            auto expr() -> AST {
+                if (matchValue()) {
+                    AST value1 = AST({}, tokens[pos - 1].str, EXPR);
+                    if (match(OPERATOR)) {
+                        std::string& operatorS = tokens[pos - 1].str;
+                        if (!checkValue())
+                            throw ASTError("Except a value after a operator");
+                        AST value2 = AST({}, tokens[pos].str, EXPR);
+                        return AST({value1, value2}, operatorS, EXPR);
+                    }
+                    return value1;
+                }
+                else if (match(OPERATOR)) {
+                    std::string& operatorS = tokens[pos - 1].str;
+                    if (!checkValue())
+                        throw ASTError("Except a value after a operator");
+                    AST value = AST({}, tokens[pos].str, EXPR);
+                    return AST({value}, operatorS, EXPR);
+                }
+                else
+                    throw ASTError("Except a value");
+            }
+
+            auto stmt() -> AST {
+                // TODO
+            }
+
+            auto main() -> AST {
+                return {{}, "", UNKNOWN};
+            }
+        };
+        Functions functions(tokens); // functions
+        return functions.main(); // get main
+    }
+};
 
 static inline auto printAllTokens(const Tokens& tokens) -> void {
     for (const Token& token : tokens) {
@@ -198,7 +274,7 @@ static inline auto typeToken(const std::string& str) -> Type {
         if (newString == "RETURN") return RETURN;
         if (newString == "INCLUDE") return INCLUDE;
         if (newString == "WHILE") return WHILE;
-        if (newString == "ELIF") return ELIF;
+        if (newString == "FUNCTION") return FUNCTION;
 
         if (newString == "(") return LEFT_PAREN;
         if (newString == ")") return RIGHT_PAREN;
@@ -207,27 +283,24 @@ static inline auto typeToken(const std::string& str) -> Type {
         if (newString == ";") return SEMICOLON;
         if (newString == ",") return COMMA;
 
-        if (newString == "+") return ADD;
-        if (newString == "-") return SUB;
-        if (newString == "*") return MUL;
-        if (newString == "/") return DIV;
-        if (newString == "%") return MOD;
-        if (newString == "@") return AT;
-        if (newString == "==") return EQUAL;
-        if (newString == "&&") return AND;
-        if (newString == "||") return OR;
-        if (newString == "!") return NOT;
-        if (newString == "=") return EQUALS;
-        if (newString == "!=") return NOT_EQUAL;
-        if (newString == ">=") return BIGGER_EQUAL;
-        if (newString == "<=") return SMALLER_EQUAL;
-
-        if (newString == "|") return EACH_OR;
-        if (newString == "~") return EACH_NOT;
-        if (newString == "&") return EACH_AND;
-        if (newString == "^") return EACH_XOR;
-
-        if (newString == "FUNCTION") return FUNCTION;
+        if (newString == "+")  return OPERATOR;
+        if (newString == "-")  return OPERATOR;
+        if (newString == "*")  return OPERATOR;
+        if (newString == "/")  return OPERATOR;
+        if (newString == "%")  return OPERATOR;
+        if (newString == "@")  return OPERATOR;
+        if (newString == "==") return OPERATOR;
+        if (newString == "&&") return OPERATOR;
+        if (newString == "||") return OPERATOR;
+        if (newString == "!")  return OPERATOR;
+        if (newString == "=")  return OPERATOR;
+        if (newString == "!=") return OPERATOR;
+        if (newString == ">=") return OPERATOR;
+        if (newString == "<=") return OPERATOR;
+        if (newString == "|")  return OPERATOR;
+        if (newString == "~")  return OPERATOR;
+        if (newString == "&")  return OPERATOR;
+        if (newString == "^")  return OPERATOR;
     }
 
     if (isDigits(str)) return DIGITS;
@@ -376,6 +449,10 @@ static inline auto lexer(const std::string& str) -> Tokens {
         tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
 
     return tokens;
+}
+
+static inline auto parser(const Tokens& tokens) -> AST {
+    return AST::turn(tokens);
 }
 
 static inline auto usage(const std::string& str) -> void {
