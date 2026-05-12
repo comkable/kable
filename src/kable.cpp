@@ -21,6 +21,7 @@
 
 #include "define.hpp"
 
+#include <utility>
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
@@ -65,6 +66,7 @@ public:
     FileError(std::string msg) {
         this->name = "FileError";
         this->msg = msg;
+        throws();
     }
 };
 
@@ -78,9 +80,10 @@ public:
 
 class ASTError : public Error {
 public:
-    ASTError(std::string msg) {
+    ASTError(std::string msg, SizeType line) {
         this->name = "ASTError";
         this->msg = msg;
+        throws(line);
     }
 };
 
@@ -96,8 +99,7 @@ enum Type: uint16_t {
     FUNCTION,
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
     SEMICOLON,
-    COMMA,
-    PARAMS, BODY, TYPES,
+        COMMA, PARAMS, STMTS, TYPES, NAMES, BODY,
     AT, RETURN,
     INCLUDE,
         STRING, CHAR, FLOAT, EXPR, // TODO
@@ -115,6 +117,7 @@ struct HeadType {
 struct Token {
     HeadType head;
     std::string str;
+    SizeType line;
 };
 
 using chars = std::vector<char>;
@@ -129,67 +132,170 @@ private:
 public:
     AST(const ASTs& asts, const std::string& str, Type type) : asts(asts), str(str), type(type) {}
 
+    auto tostring(ui16 indent) -> std::string {
+        std::string indentStr;
+        for (ui16 i = 0; i < indent; i++)
+            indentStr += "";
+        std::string str = indentStr + "ASTS:";
+        for (AST ast : asts)
+            str += ast.tostring(indent + 2);
+        str += indentStr + "STR:";
+        str += indentStr + "  " + this->str;
+        str += indentStr + "TYPE:";
+        str += indentStr + std::string("  ") + std::to_string(this->type);
+        return str;
+    }
+
+    operator std::string() {
+        
+    }
+
     static auto turn(const Tokens& tokens) -> AST {
         struct Functions {
-            Tokens& tokens;
-            SizeType pos = 0;
+Tokens& tokens;
+SizeType pos = 0;
 
-            Functions(const Tokens& tokens) : tokens(const_cast<Tokens&>(tokens)) {}
+Functions(const Tokens& tokens) : tokens(const_cast<Tokens&>(tokens)) {}
 
-            auto match(Type type) -> bool {
-                if (tokens[pos].head.type == type) {
-                    pos++;
-                    return true;
-                }
-                return false;
-            }
-
-            auto check(Type type) -> bool {
-                return tokens[pos].head.type == type; // isEqual
-            }
-
-            auto matchValue() -> bool {
-                return match(DIGITS) || match(STRING) || match(CHAR) || match(FLOAT) || match(OPERATOR);
-            }
-
-            auto checkValue() -> bool {
-                return check(DIGITS) || check(STRING) || check(CHAR) || check(FLOAT) || check(OPERATOR);
-            }
-
-            auto expr() -> AST {
-                if (matchValue()) {
-                    AST value1 = AST({}, tokens[pos - 1].str, EXPR);
-                    if (match(OPERATOR)) {
-                        std::string& operatorS = tokens[pos - 1].str;
-                        if (!checkValue())
-                            throw ASTError("Except a value after a operator");
-                        AST value2 = AST({}, tokens[pos].str, EXPR);
-                        return AST({value1, value2}, operatorS, EXPR);
-                    }
-                    return value1;
-                }
-                else if (match(OPERATOR)) {
-                    std::string& operatorS = tokens[pos - 1].str;
-                    if (!checkValue())
-                        throw ASTError("Except a value after a operator");
-                    AST value = AST({}, tokens[pos].str, EXPR);
-                    return AST({value}, operatorS, EXPR);
-                }
-                else
-                    throw ASTError("Except a value");
-            }
-
-            auto stmt() -> AST {
-                // TODO
-            }
-
-            auto main() -> AST {
-                return {{}, "", UNKNOWN};
-            }
-        };
-        Functions functions(tokens); // functions
-        return functions.main(); // get main
+auto match(Type type) -> bool {
+    if (tokens[pos].head.type == type) {
+        pos++;
+        return true;
     }
+    return false;
+}
+
+auto check(Type type) -> bool {
+    return tokens[pos].head.type == type; // isEqual
+}
+
+auto matchValue() -> bool {
+    return match(DIGITS) || match(STRING) || match(CHAR) || match(FLOAT) || match(OPERATOR);
+}
+
+auto checkValue() -> bool {
+    return check(DIGITS) || check(STRING) || check(CHAR) || check(FLOAT) || check(OPERATOR);
+}
+
+auto matchType() -> bool {
+    // TODO: Type<Type>
+    return match(IDENTIFIER);
+}
+
+auto checkType() -> bool {
+    // TODO: Type<Type>
+    return check(IDENTIFIER);
+}
+
+auto expr() -> AST {
+    if (matchValue()) {
+        AST value1 = AST({}, tokens[pos - 1].str, EXPR);
+        if (match(OPERATOR)) {
+            std::string& operatorS = tokens[pos - 1].str;
+            if (!checkValue())
+                throw ASTError("Except a value after a operator", tokens[pos].line);
+            AST value2 = AST({}, tokens[pos].str, EXPR);
+            return AST({value1, value2}, operatorS, EXPR);
+        }
+        return value1;
+    }
+    else if (match(OPERATOR)) {
+        std::string& operatorS = tokens[pos - 1].str;
+        if (!checkValue())
+            throw ASTError("Except a value after a operator", tokens[pos].line);
+        AST value = AST({}, tokens[pos].str, EXPR);
+        return AST({value}, operatorS, EXPR);
+    }
+    else
+        throw ASTError("Except a value", tokens[pos].line);
+}
+
+auto type() -> AST {
+    if (match(IDENTIFIER)) {
+        // TODO: Type<Type>
+        return AST{{}, tokens[pos - 1].str, TYPES};
+    }
+    throw ASTError("Except a type", tokens[pos].line);
+}
+
+auto stmt() -> AST {
+    // function Name(Args) @type {}
+    if (match(FUNCTION)) {
+        if (!match(IDENTIFIER))
+            throw ASTError("Expected function name", tokens[pos].line);
+        std::string func_name = tokens[pos - 1].str;
+
+        if (!match(LEFT_PAREN))
+            throw ASTError("Expected '(' after function name", tokens[pos].line);
+
+        std::vector<AST> arg_types;
+        std::vector<std::string> arg_names;
+
+        if (!match(RIGHT_PAREN)) {
+            while (true) {
+                if (!checkType())
+                    throw ASTError("Expected parameter type", tokens[pos].line);
+                arg_types.emplace_back(type());
+
+                if (!match(IDENTIFIER))
+                    throw ASTError("Expected parameter name", tokens[pos].line);
+                arg_names.emplace_back(tokens[pos - 1].str);
+
+                if (match(COMMA))
+                    continue;
+                else if (match(RIGHT_PAREN))
+                    break;
+                else
+                    throw ASTError("Expected ',' or ')'", tokens[pos].line);
+            }
+        }
+
+        if (!match(LEFT_BRACE))
+            throw ASTError("Expected '{' to start function body", tokens[pos].line);
+
+        std::vector<AST> body;
+
+        while (!match(RIGHT_BRACE))
+            body.emplace_back(stmt());
+
+        return AST(
+            {
+                AST(arg_types, "", TYPES),
+                AST(arg_types, "", NAMES),
+                AST(body, "", BODY)
+            },
+            "",
+            FUNCTION
+        );
+    }
+    // Type Name;
+    // Type Name = Value;
+    if (checkType()) {
+        AST type_ = type();
+        if (!match(IDENTIFIER))
+            throw ASTError("Except an identifier after a type", tokens[pos].line);
+
+        std::string name = tokens[pos - 1].str;
+
+        if (match(OPERATOR) && tokens[pos - 1].str == "=") {
+            AST expr_ = expr();
+            return AST({type_, expr_}, name, EQUALS);
+        }
+
+        if (!check(SEMICOLON))
+            throw ASTError("Except a ; after defining.", tokens[pos].line);
+
+        return AST({type_}, name, TYPES);
+    }
+}
+
+auto main() -> AST {
+            return {{}, "", UNKNOWN};
+        }
+    };
+    Functions functions(tokens); // functions
+    return functions.main(); // get main
+}
 };
 
 static inline auto printAllTokens(const Tokens& tokens) -> void {
@@ -313,8 +419,9 @@ static inline auto typeToken(const std::string& str) -> Type {
 
 static inline auto lexer(const std::string& str) -> Tokens {
     Tokens tokens;
+#define NEED_LINE
 #ifdef NEED_LINE
-    std::size_t line = 1;
+    SizeType line = 1;
 #endif
     std::string buffer;
     buffer.reserve(64);
@@ -337,7 +444,7 @@ static inline auto lexer(const std::string& str) -> Tokens {
                 throw TokenError("unclosed string/char");
 
             if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
+                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
                 buffer.clear();
             }
             continue;
@@ -345,7 +452,7 @@ static inline auto lexer(const std::string& str) -> Tokens {
 
         if (isString) {
             if (c == '"') {
-                tokens.emplace_back(Token{STRING, std::move(buffer)});
+                tokens.emplace_back(Token{STRING, std::move(buffer), line});
                 buffer.clear();
                 isString = false;
                 continue;
@@ -366,7 +473,7 @@ static inline auto lexer(const std::string& str) -> Tokens {
 
         if (isChar) {
             if (c == '\'') {
-                tokens.emplace_back(Token{CHAR, std::move(buffer)});
+                tokens.emplace_back(Token{CHAR, std::move(buffer), line});
                 buffer.clear();
                 isChar = false;
                 continue;
@@ -382,7 +489,7 @@ static inline auto lexer(const std::string& str) -> Tokens {
 
         if (isWhite(c)) {
             if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
+                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
                 buffer.clear();
             }
             continue;
@@ -414,10 +521,10 @@ static inline auto lexer(const std::string& str) -> Tokens {
 
             if (match) {
                 if (!buffer.empty()) {
-                    tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
+                    tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
                     buffer.clear();
                 }
-                tokens.emplace_back(Token{typeToken(op), std::move(op)});
+                tokens.emplace_back(Token{typeToken(op), std::move(op), line});
                 ++it;
                 continue;
             }
@@ -432,10 +539,10 @@ static inline auto lexer(const std::string& str) -> Tokens {
         static const char* singleOps = "(){};,+-*/@=%&|!\"'";
         if (std::strchr(singleOps, c)) {
             if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
+                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
                 buffer.clear();
             }
-            tokens.emplace_back(Token{typeToken(std::string(1, c)), std::string(1, c)});
+            tokens.emplace_back(Token{typeToken(std::string(1, c)), std::string(1, c), line});
             continue;
         }
 
@@ -446,7 +553,7 @@ static inline auto lexer(const std::string& str) -> Tokens {
         throw TokenError("unclosed string/char at EOF");
 
     if (!buffer.empty())
-        tokens.emplace_back(Token{typeToken(buffer), std::move(buffer)});
+        tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
 
     return tokens;
 }
