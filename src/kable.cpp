@@ -146,10 +146,6 @@ public:
         return str;
     }
 
-    operator std::string() {
-        
-    }
-
     static auto turn(const Tokens& tokens) -> AST {
         struct Functions {
 Tokens& tokens;
@@ -187,27 +183,31 @@ auto checkType() -> bool {
     return check(IDENTIFIER);
 }
 
+auto factor() -> AST {}
+
+auto term() -> AST {}
+
 auto expr() -> AST {
-    if (matchValue()) {
-        AST value1 = AST({}, tokens[pos - 1].str, EXPR);
-        if (match(OPERATOR)) {
-            std::string& operatorS = tokens[pos - 1].str;
-            if (!checkValue())
-                throw ASTError("Except a value after a operator", tokens[pos].line);
-            AST value2 = AST({}, tokens[pos].str, EXPR);
-            return AST({value1, value2}, operatorS, EXPR);
-        }
-        return value1;
-    }
-    else if (match(OPERATOR)) {
-        std::string& operatorS = tokens[pos - 1].str;
-        if (!checkValue())
-            throw ASTError("Except a value after a operator", tokens[pos].line);
-        AST value = AST({}, tokens[pos].str, EXPR);
-        return AST({value}, operatorS, EXPR);
-    }
-    else
-        throw ASTError("Except a value", tokens[pos].line);
+    // if (matchValue()) {
+    //     AST value1 = AST({}, tokens[pos - 1].str, EXPR);
+    //     if (match(OPERATOR)) {
+    //         std::string& operatorS = tokens[pos - 1].str;
+    //         if (!checkValue())
+    //             throw ASTError("Except a value after a operator", tokens[pos].line);
+    //         AST value2 = AST({}, tokens[pos].str, EXPR);
+    //         return AST({value1, value2}, operatorS, EXPR);
+    //     }
+    //     return value1;
+    // }
+    // else if (match(OPERATOR)) {
+    //     std::string& operatorS = tokens[pos - 1].str;
+    //     if (!checkValue())
+    //         throw ASTError("Except a value after a operator", tokens[pos].line);
+    //     AST value = AST({}, tokens[pos].str, EXPR);
+    //     return AST({value}, operatorS, EXPR);
+    // }
+    // else
+    //     throw ASTError("Except a value", tokens[pos].line);
 }
 
 auto type() -> AST {
@@ -290,9 +290,9 @@ auto stmt() -> AST {
 }
 
 auto main() -> AST {
-            return {{}, "", UNKNOWN};
-        }
-    };
+    return AST{{}, "", UNKNOWN};
+}
+};
     Functions functions(tokens); // functions
     return functions.main(); // get main
 }

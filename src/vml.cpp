@@ -22,6 +22,7 @@
 #include "define.hpp"
 #include "functions.hpp"
 
+#include <iomanip>
 #include <cstdlib>
 #include <iostream>
 #include <vector>
@@ -36,6 +37,12 @@ enum class add {
     ui64,
     flt32,
     flt64,
+};
+enum class mov {
+    byte1,
+    byte2,
+    byte4,
+    byte8
 };
 };
 
@@ -67,12 +74,26 @@ static inline auto usage(const std::string& str) -> void {
     exit(EXIT_FAILURE);
 }
 
+void printHex(const chars& data) {
+    std::cout << std::hex << std::setfill('0') << std::uppercase;
+
+    SizeType len = data.size();
+
+    for (char c : data)
+        std::cout << std::setw(2) << static_cast<int>(c);
+
+    std::cout << std::dec << std::nouppercase << std::endl;
+}
+
 static inline void executeLine(const chars& cs, SizeType& i) {
     const void* dataPtr = cs.data();
     const ui32 command = *static_cast<const ui32*>(dataPtr);
+    // printf("%d\n", command);
 
     const char* argsPtr = static_cast<const char*>(dataPtr) + sizeof(ui32);
     functions[command](argsPtr, i);
+
+    printf("%d\n", static_cast<int>(regByte1Number1)); // print the first
 }
 
 static inline void execute(chars& cs) {
@@ -111,10 +132,9 @@ static inline void execute(chars& cs) {
         lines.push_back(std::move(temp));
     }
 
-    // Functions::printLines(lines);
-    for (SizeType i = 0; i < lines.size(); ) {
+    Functions::printLines(lines);
+    for (SizeType i = 0; i < lines.size(); )
         executeLine(lines[i], i);
-    }
 }
 
 int main(int argc, char** _argv) {

@@ -21,6 +21,7 @@
 
 #include "define.hpp"
 
+#include <cstdlib>
 #include <vector>
 #include <functional>
 
@@ -28,10 +29,10 @@
 
 using chars = std::vector<char>;
 using Function = std::function<void(const char*, SizeType&)>;
-using Location = ui32;
+using location = ui32;
 using Reg = ui8;
 
-static constexpr ui8 sizeofLocation = sizeof(Location);
+static constexpr ui8 sizeofReg = sizeof(Reg);
 
 #if 1 // regs
     ui8 regByte1Number1 = 0;
@@ -55,27 +56,28 @@ static constexpr ui8 sizeofLocation = sizeof(Location);
     ui64 regByte8Number4 = 0;
 #endif
 
-static inline void regWrite(void* data, Reg reg) {
+static inline void regWrite(const void* data, Reg reg) {
     switch (reg) {
-    case 0x0: regByte1Number1 = *static_cast<ui8*>(data); break;
-    case 0x1: regByte1Number2 = *static_cast<ui8*>(data); break;
-    case 0x2: regByte1Number3 = *static_cast<ui8*>(data); break;
-    case 0x3: regByte1Number4 = *static_cast<ui8*>(data); break;
+    case 0x0: regByte1Number1 = *static_cast<const ui8*>(data); break;
+    case 0x1: regByte1Number2 = *static_cast<const ui8*>(data); break;
+    case 0x2: regByte1Number3 = *static_cast<const ui8*>(data); break;
+    case 0x3: regByte1Number4 = *static_cast<const ui8*>(data); break;
 
-    case 0x4: regByte2Number1 = *static_cast<ui16*>(data); break;
-    case 0x5: regByte2Number2 = *static_cast<ui16*>(data); break;
-    case 0x6: regByte2Number3 = *static_cast<ui16*>(data); break;
-    case 0x7: regByte2Number4 = *static_cast<ui16*>(data); break;
+    case 0x4: regByte2Number1 = *static_cast<const ui16*>(data); break;
+    case 0x5: regByte2Number2 = *static_cast<const ui16*>(data); break;
+    case 0x6: regByte2Number3 = *static_cast<const ui16*>(data); break;
+    case 0x7: regByte2Number4 = *static_cast<const ui16*>(data); break;
 
-    case 0x8: regByte4Number1 = *static_cast<ui32*>(data); break;
-    case 0x9: regByte4Number2 = *static_cast<ui32*>(data); break;
-    case 0xa: regByte4Number3 = *static_cast<ui32*>(data); break;
-    case 0xb: regByte4Number4 = *static_cast<ui32*>(data); break;
+    case 0x8: regByte4Number1 = *static_cast<const ui32*>(data); break;
+    case 0x9: regByte4Number2 = *static_cast<const ui32*>(data); break;
+    case 0xa: regByte4Number3 = *static_cast<const ui32*>(data); break;
+    case 0xb: regByte4Number4 = *static_cast<const ui32*>(data); break;
 
-    case 0xc: regByte8Number1 = *static_cast<ui64*>(data); break;
-    case 0xd: regByte8Number2 = *static_cast<ui64*>(data); break;
-    case 0xe: regByte8Number3 = *static_cast<ui64*>(data); break;
-    case 0xf: regByte8Number4 = *static_cast<ui64*>(data); break;
+    case 0xc: regByte8Number1 = *static_cast<const ui64*>(data); break;
+    case 0xd: regByte8Number2 = *static_cast<const ui64*>(data); break;
+    case 0xe: regByte8Number3 = *static_cast<const ui64*>(data); break;
+    case 0xf: regByte8Number4 = *static_cast<const ui64*>(data); break;
+    default: printf("Unknown reg: %d", static_cast<int>(reg)); exit(EXIT_FAILURE);
     }
 }
 
@@ -105,397 +107,407 @@ static inline void* regRead(Reg reg) {
 }
 
 struct add {
-    static inline void Ui8(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui8(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(loc1)) + *static_cast<ui8*>(regRead(loc2));
+        ui8 res = *static_cast<ui8*>(regRead(reg1)) + *static_cast<ui8*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui16(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui16*>(regRead(loc1)) + *static_cast<ui16*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Ui32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui16(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(loc1)) + *static_cast<ui32*>(regRead(loc2));
+        ui8 res = *static_cast<ui16*>(regRead(reg1)) + *static_cast<ui16*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui64*>(regRead(loc1)) + *static_cast<ui64*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(loc1)) + *static_cast<float32*>(regRead(loc2));
+        ui8 res = *static_cast<ui32*>(regRead(reg1)) + *static_cast<ui32*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(loc1)) + *static_cast<float64*>(regRead(loc2));
+        ui8 res = *static_cast<ui64*>(regRead(reg1)) + *static_cast<ui64*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float32*>(regRead(reg1)) + *static_cast<float32*>(regRead(reg2));
+
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float64*>(regRead(reg1)) + *static_cast<float64*>(regRead(reg2));
+
+        regWrite(&res, reg3);
 
         i++;
     }
 };
 
 struct sub {
-    static inline void Ui8(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui8(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(loc1)) - *static_cast<ui8*>(regRead(loc2));
+        ui8 res = *static_cast<ui8*>(regRead(reg1)) - *static_cast<ui8*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui16(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui16*>(regRead(loc1)) - *static_cast<ui16*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Ui32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui16(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(loc1)) - *static_cast<ui32*>(regRead(loc2));
+        ui8 res = *static_cast<ui16*>(regRead(reg1)) - *static_cast<ui16*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui64*>(regRead(loc1)) - *static_cast<ui64*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(loc1)) - *static_cast<float32*>(regRead(loc2));
+        ui8 res = *static_cast<ui32*>(regRead(reg1)) - *static_cast<ui32*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(loc1)) - *static_cast<float64*>(regRead(loc2));
+        ui8 res = *static_cast<ui64*>(regRead(reg1)) - *static_cast<ui64*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float32*>(regRead(reg1)) - *static_cast<float32*>(regRead(reg2));
+
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float64*>(regRead(reg1)) - *static_cast<float64*>(regRead(reg2));
+
+        regWrite(&res, reg3);
 
         i++;
     }
 };
 
 struct mul {
-    static inline void Ui8(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui8(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(loc1)) * *static_cast<ui8*>(regRead(loc2));
+        ui8 res = *static_cast<ui8*>(regRead(reg1)) * *static_cast<ui8*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui16(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui16*>(regRead(loc1)) * *static_cast<ui16*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Ui32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui16(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(loc1)) * *static_cast<ui32*>(regRead(loc2));
+        ui8 res = *static_cast<ui16*>(regRead(reg1)) * *static_cast<ui16*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui64*>(regRead(loc1)) * *static_cast<ui64*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(loc1)) * *static_cast<float32*>(regRead(loc2));
+        ui8 res = *static_cast<ui32*>(regRead(reg1)) * *static_cast<ui32*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(loc1)) * *static_cast<float64*>(regRead(loc2));
+        ui8 res = *static_cast<ui64*>(regRead(reg1)) * *static_cast<ui64*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float32*>(regRead(reg1)) * *static_cast<float32*>(regRead(reg2));
+
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float64*>(regRead(reg1)) * *static_cast<float64*>(regRead(reg2));
+
+        regWrite(&res, reg3);
 
         i++;
     }
 };
 
 struct div {
-    static inline void Ui8(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui8(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(loc1)) / *static_cast<ui8*>(regRead(loc2));
+        ui8 res = *static_cast<ui8*>(regRead(reg1)) / *static_cast<ui8*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui16(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui16*>(regRead(loc1)) / *static_cast<ui16*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Ui32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui16(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(loc1)) / *static_cast<ui32*>(regRead(loc2));
+        ui8 res = *static_cast<ui16*>(regRead(reg1)) / *static_cast<ui16*>(regRead(reg2));
 
-        regWrite(&res, loc3);
-
-        i++;
-    }
-    static inline void Ui64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
-
-        ui8 res = *static_cast<ui64*>(regRead(loc1)) / *static_cast<ui64*>(regRead(loc2));
-
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt32(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(loc1)) / *static_cast<float32*>(regRead(loc2));
+        ui8 res = *static_cast<ui32*>(regRead(reg1)) / *static_cast<ui32*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
         i++;
     }
-    static inline void Flt64(ARGS) {
-        Reg loc1 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+    static void Ui64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc2 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        Reg loc3 = *static_cast<const Reg*>(static_cast<const void*>(args));
-        args += sizeofLocation;
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(loc1)) / *static_cast<float64*>(regRead(loc2));
+        ui8 res = *static_cast<ui64*>(regRead(reg1)) / *static_cast<ui64*>(regRead(reg2));
 
-        regWrite(&res, loc3);
+        regWrite(&res, reg3);
 
+        i++;
+    }
+    static void Flt32(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float32*>(regRead(reg1)) / *static_cast<float32*>(regRead(reg2));
+
+        regWrite(&res, reg3);
+
+        i++;
+    }
+    static void Flt64(ARGS) {
+        Reg reg1 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg2 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        Reg reg3 = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+
+        ui8 res = *static_cast<float64*>(regRead(reg1)) / *static_cast<float64*>(regRead(reg2));
+
+        regWrite(&res, reg3);
+
+        i++;
+    }
+};
+
+struct mov {
+    static void Mov(ARGS) {
+        Reg reg = *static_cast<const Reg*>(static_cast<const void*>(args));
+        args += sizeofReg;
+        // printf("%d\n", reg);
+        regWrite(static_cast<const void*>(args), reg);
         i++;
     }
 };
@@ -516,7 +528,6 @@ std::vector<Function> functions = {
     &sub::Flt32,
     &sub::Flt64,
 
-    
     &mul::Ui8,
     &mul::Ui16,
     &mul::Ui32,
@@ -530,4 +541,7 @@ std::vector<Function> functions = {
     &div::Ui64,
     &div::Flt32,
     &div::Flt64,
+
+    // 23
+    &mov::Mov,
 };
