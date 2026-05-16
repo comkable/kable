@@ -5,10 +5,11 @@ def write(path: str, data: bytes) -> None:
 
 def main() -> None:
     write("goal.bin", bytes([
-        6, 24, 0, 0, 0, 0, 1,
-        6, 24, 0, 0, 0, 1, 2,
-        
-        7, 0, 0, 0, 0, 0, 1, 0,
+        4, 0, 1, 0, 1,    # (4) mov reg0 (from) 1
+        4, 0, 1, 1, 2,    # (4) mov reg1 (from) 2
+    
+        7, 0, 0, 0, 1, 0, # (7) add reg0 (and) reg1 (to) reg0
+        # reg0 = 3
     ]))
 
 if __name__ == '__main__':

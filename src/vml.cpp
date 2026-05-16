@@ -29,23 +29,6 @@
 #include <string>
 #include <fstream>
 
-struct Commands {
-enum class add {
-    ui8,
-    ui16,
-    ui32,
-    ui64,
-    flt32,
-    flt64,
-};
-enum class mov {
-    byte1,
-    byte2,
-    byte4,
-    byte8
-};
-};
-
 using chars = std::vector<char>;
 using charsIter = chars::iterator;
 
@@ -85,15 +68,21 @@ void printHex(const chars& data) {
     std::cout << std::dec << std::nouppercase << std::endl;
 }
 
-static inline void executeLine(const chars& cs, SizeType& i) {
-    const void* dataPtr = cs.data();
-    const ui32 command = *static_cast<const ui32*>(dataPtr);
+static inline void executeLine(chars& cs, SizeType& i) {
+    ui8* dataPtr = reinterpret_cast<ui8*>(cs.data());
+    ui16 command = readI16(dataPtr);
     // printf("%d\n", command);
 
-    const char* argsPtr = static_cast<const char*>(dataPtr) + sizeof(ui32);
-    functions[command](argsPtr, i);
+    ui8* argsPtr = reinterpret_cast<ui8*>(dataPtr) + sizeof(command);
 
-    printf("%d\n", static_cast<int>(regByte1Number1)); // print the first
+    auto& func = functions[command];
+
+    if (!func) {
+        printf("Error: cannot run %u\n", command);
+        exit(EXIT_FAILURE);
+    }
+
+    func(argsPtr, i);
 }
 
 static inline void execute(chars& cs) {
@@ -132,7 +121,8 @@ static inline void execute(chars& cs) {
         lines.push_back(std::move(temp));
     }
 
-    Functions::printLines(lines);
+    // Functions::printLines(lines);
+
     for (SizeType i = 0; i < lines.size(); )
         executeLine(lines[i], i);
 }
@@ -143,9 +133,14 @@ int main(int argc, char** _argv) {
     if (argv.size() < 2)
         usage(argv[0]);
 
+    loadFunctions();
     std::string inputFile = argv[1];
     chars cs = readAll(inputFile);
     execute(cs);
+    
+#ifdef DEBUG
+    printf("reg1 = %d\n", static_cast<int>(regByte1Number1)); // print the first
+#endif
 
     return 0;
 }
