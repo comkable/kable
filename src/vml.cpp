@@ -70,6 +70,10 @@ void printHex(const chars& data) {
 
 static inline void executeLine(chars& cs, SizeType& i) {
     ui8* dataPtr = reinterpret_cast<ui8*>(cs.data());
+    if (dataPtr == NULL) {
+        printf("The %dth command is NULL.", i + 1);
+        exit(EXIT_FAILURE);
+    }
     ui16 command = readI16(dataPtr);
     // printf("%d\n", command);
 
@@ -84,6 +88,8 @@ static inline void executeLine(chars& cs, SizeType& i) {
 
     func(argsPtr, i);
 }
+
+// std::pair<ui8, chars> -> command is faster
 
 static inline void execute(chars& cs) {
     std::vector<chars> lines;
@@ -137,10 +143,10 @@ int main(int argc, char** _argv) {
     std::string inputFile = argv[1];
     chars cs = readAll(inputFile);
     execute(cs);
-    
-#ifdef DEBUG
-    printf("reg1 = %d\n", static_cast<int>(regByte1Number1)); // print the first
-#endif
+
+// #ifdef DEBUG
+//     printf("reg0 = %d\n", static_cast<int>(regByte1Number1)); // print the first
+// #endif
 
     return 0;
 }

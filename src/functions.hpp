@@ -111,6 +111,7 @@ static inline void regWrite(const void* data, Reg reg) {
     case 0xd: regByte8Number2 = *static_cast<const ui64*>(data); break;
     case 0xe: regByte8Number3 = *static_cast<const ui64*>(data); break;
     case 0xf: regByte8Number4 = *static_cast<const ui64*>(data); break;
+
     default: printf("Unknown reg: %d", static_cast<int>(reg)); exit(EXIT_FAILURE);
     }
 }
@@ -551,6 +552,15 @@ struct putchar {
         Reg reg = readReg(args);
         char c = *static_cast<char*>(regRead(reg));
         ioChar(c);
+        i++;
+    }
+};
+
+struct goto_ {
+    static void goto__(ARGS) {
+        Reg reg = readReg(args);
+        ui32 c = *static_cast<ui32*>(regRead(reg));
+        i = c;
     }
 };
 
@@ -604,5 +614,6 @@ void loadFunctions() {
 
     functions[0x100] = &mov::Mov;
     functions[0x101] = &putchar::Putchar;
+    functions[0x102] = &goto_::goto__;
     // functions[0x102] = &putstring::Putstring;
 }
