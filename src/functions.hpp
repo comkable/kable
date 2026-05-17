@@ -1,4 +1,3 @@
-
 // Copyright (c) 2026 comkable
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -24,6 +23,10 @@
 #include <cstdlib>
 #include <vector>
 #include <functional>
+#include <cstdio>
+#include <array>
+#include <bit>
+#include <cstdint>
 
 #define ARGS ui8* args, SizeType& i
 
@@ -92,25 +95,25 @@ static inline ui64 readI64(const ui8* data) {
 
 static inline void regWrite(const void* data, Reg reg) {
     switch (reg) {
-    case 0x0: regByte1Number1 = *static_cast<const ui8*>(data); break;
-    case 0x1: regByte1Number2 = *static_cast<const ui8*>(data); break;
-    case 0x2: regByte1Number3 = *static_cast<const ui8*>(data); break;
-    case 0x3: regByte1Number4 = *static_cast<const ui8*>(data); break;
+    case 0x0: regByte1Number1 = readI8(static_cast<const ui8*>(data)); break;
+    case 0x1: regByte1Number2 = readI8(static_cast<const ui8*>(data)); break;
+    case 0x2: regByte1Number3 = readI8(static_cast<const ui8*>(data)); break;
+    case 0x3: regByte1Number4 = readI8(static_cast<const ui8*>(data)); break;
 
-    case 0x4: regByte2Number1 = *static_cast<const ui16*>(data); break;
-    case 0x5: regByte2Number2 = *static_cast<const ui16*>(data); break;
-    case 0x6: regByte2Number3 = *static_cast<const ui16*>(data); break;
-    case 0x7: regByte2Number4 = *static_cast<const ui16*>(data); break;
+    case 0x4: regByte2Number1 = readI16(static_cast<const ui8*>(data)); break;
+    case 0x5: regByte2Number2 = readI16(static_cast<const ui8*>(data)); break;
+    case 0x6: regByte2Number3 = readI16(static_cast<const ui8*>(data)); break;
+    case 0x7: regByte2Number4 = readI16(static_cast<const ui8*>(data)); break;
 
-    case 0x8: regByte4Number1 = *static_cast<const ui32*>(data); break;
-    case 0x9: regByte4Number2 = *static_cast<const ui32*>(data); break;
-    case 0xa: regByte4Number3 = *static_cast<const ui32*>(data); break;
-    case 0xb: regByte4Number4 = *static_cast<const ui32*>(data); break;
+    case 0x8: regByte4Number1 = readI32(static_cast<const ui8*>(data)); break;
+    case 0x9: regByte4Number2 = readI32(static_cast<const ui8*>(data)); break;
+    case 0xa: regByte4Number3 = readI32(static_cast<const ui8*>(data)); break;
+    case 0xb: regByte4Number4 = readI32(static_cast<const ui8*>(data)); break;
 
-    case 0xc: regByte8Number1 = *static_cast<const ui64*>(data); break;
-    case 0xd: regByte8Number2 = *static_cast<const ui64*>(data); break;
-    case 0xe: regByte8Number3 = *static_cast<const ui64*>(data); break;
-    case 0xf: regByte8Number4 = *static_cast<const ui64*>(data); break;
+    case 0xc: regByte8Number1 = readI64(static_cast<const ui8*>(data)); break;
+    case 0xd: regByte8Number2 = readI64(static_cast<const ui8*>(data)); break;
+    case 0xe: regByte8Number3 = readI64(static_cast<const ui8*>(data)); break;
+    case 0xf: regByte8Number4 = readI64(static_cast<const ui8*>(data)); break;
 
     default: printf("Unknown reg: %d", static_cast<int>(reg)); exit(EXIT_FAILURE);
     }
@@ -121,7 +124,7 @@ static inline void* regRead(Reg reg) {
     case 0x0: return &regByte1Number1;
     case 0x1: return &regByte1Number2;
     case 0x2: return &regByte1Number3;
-    case 0x3: return &regByte4Number4;
+    case 0x3: return &regByte1Number4;
 
     case 0x4: return &regByte2Number1;
     case 0x5: return &regByte2Number2;
@@ -152,7 +155,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(reg1)) + *static_cast<ui8*>(regRead(reg2));
+        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) + readI8(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -168,7 +171,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui16*>(regRead(reg1)) + *static_cast<ui16*>(regRead(reg2));
+        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) + readI16(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -184,7 +187,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(reg1)) + *static_cast<ui32*>(regRead(reg2));
+        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) + readI32(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -200,7 +203,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui64*>(regRead(reg1)) + *static_cast<ui64*>(regRead(reg2));
+        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) + readI64(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -216,7 +219,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(reg1)) + *static_cast<float32*>(regRead(reg2));
+        float res = *reinterpret_cast<float*>(regRead(reg1)) + *reinterpret_cast<float*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -232,7 +235,7 @@ struct add {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(reg1)) + *static_cast<float64*>(regRead(reg2));
+        double res = *reinterpret_cast<double*>(regRead(reg1)) + *reinterpret_cast<double*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -251,7 +254,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(reg1)) - *static_cast<ui8*>(regRead(reg2));
+        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) - readI8(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -267,7 +270,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui16*>(regRead(reg1)) - *static_cast<ui16*>(regRead(reg2));
+        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) - readI16(static_cast<ui8*>(regRead(reg2))); // 修复：类型+括号
 
         regWrite(&res, reg3);
 
@@ -283,7 +286,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(reg1)) - *static_cast<ui32*>(regRead(reg2));
+        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) - readI32(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -299,7 +302,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui64*>(regRead(reg1)) - *static_cast<ui64*>(regRead(reg2));
+        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) - readI64(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -315,7 +318,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(reg1)) - *static_cast<float32*>(regRead(reg2));
+        float res = *reinterpret_cast<float*>(regRead(reg1)) - *reinterpret_cast<float*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -331,7 +334,7 @@ struct sub {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(reg1)) - *static_cast<float64*>(regRead(reg2));
+        double res = *reinterpret_cast<double*>(regRead(reg1)) - *reinterpret_cast<double*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -350,7 +353,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(reg1)) * *static_cast<ui8*>(regRead(reg2));
+        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) * readI8(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -366,7 +369,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui16*>(regRead(reg1)) * *static_cast<ui16*>(regRead(reg2));
+        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) * readI16(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -382,7 +385,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(reg1)) * *static_cast<ui32*>(regRead(reg2));
+        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) * readI32(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -398,7 +401,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui64*>(regRead(reg1)) * *static_cast<ui64*>(regRead(reg2));
+        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) * readI64(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -414,7 +417,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(reg1)) * *static_cast<float32*>(regRead(reg2));
+        float res = *reinterpret_cast<float*>(regRead(reg1)) * *reinterpret_cast<float*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -430,7 +433,7 @@ struct mul {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(reg1)) * *static_cast<float64*>(regRead(reg2));
+        double res = *reinterpret_cast<double*>(regRead(reg1)) * *reinterpret_cast<double*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -449,7 +452,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui8*>(regRead(reg1)) / *static_cast<ui8*>(regRead(reg2));
+        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) / readI8(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -465,7 +468,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui16*>(regRead(reg1)) / *static_cast<ui16*>(regRead(reg2));
+        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) / readI16(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -481,7 +484,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui32*>(regRead(reg1)) / *static_cast<ui32*>(regRead(reg2));
+        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) / readI32(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -497,7 +500,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<ui64*>(regRead(reg1)) / *static_cast<ui64*>(regRead(reg2));
+        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) / readI64(static_cast<ui8*>(regRead(reg2)));
 
         regWrite(&res, reg3);
 
@@ -513,7 +516,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float32*>(regRead(reg1)) / *static_cast<float32*>(regRead(reg2));
+        float res = *reinterpret_cast<float*>(regRead(reg1)) / *reinterpret_cast<float*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -529,7 +532,7 @@ struct div {
         Reg reg3 = readReg(args);
         args += sizeofReg;
 
-        ui8 res = *static_cast<float64*>(regRead(reg1)) / *static_cast<float64*>(regRead(reg2));
+        double res = *reinterpret_cast<double*>(regRead(reg1)) / *reinterpret_cast<double*>(regRead(reg2));
 
         regWrite(&res, reg3);
 
@@ -550,7 +553,7 @@ struct mov {
 struct putchar {
     static void Putchar(ARGS) {
         Reg reg = readReg(args);
-        char c = *static_cast<char*>(regRead(reg));
+        char c = readI8(static_cast<ui8*>(regRead(reg)));
         ioChar(c);
         i++;
     }
@@ -559,7 +562,7 @@ struct putchar {
 struct goto_ {
     static void goto__(ARGS) {
         Reg reg = readReg(args);
-        ui32 c = *static_cast<ui32*>(regRead(reg));
+        ui32 c = readI32(static_cast<ui8*>(regRead(reg)));
         i = c;
     }
 };
@@ -567,7 +570,7 @@ struct goto_ {
 // struct putstring {
 //     static void Putstring(ARGS) {
 //         Reg reg = readReg(args);
-//         char c = *static_cast<char*>(regRead(reg));
+//         char c = readI8(static_cast<char*>(regRead(reg));
 //         ioChar(c);
 //     }
 // };

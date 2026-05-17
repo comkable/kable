@@ -1,0 +1,36 @@
+
+mov 0 72
+putchar 0
+
+mov 0 101
+putchar 0
+
+mov 0 108
+putchar 0
+
+mov 0 108
+putchar 0
+
+mov 0 111
+putchar 0
+
+mov 0 44
+putchar 0
+
+mov 0 32
+putchar 0
+
+mov 0 119
+putchar 0
+
+mov 0 111
+putchar 0
+
+mov 0 114
+putchar 0
+
+mov 0 108
+putchar 0
+
+mov 0 100
+putchar 0

@@ -42,14 +42,14 @@ static inline auto readAll(const std::string& filename) -> chars {
                      std::istreambuf_iterator<char>());
 
     chars cleaned;
-    for (size_t i = 0; i < cs.size(); ++i) {
+    for (SizeType i = 0; i < cs.size(); ++i) {
         if (cs[i] == '\r' && i + 1 < cs.size() && cs[i+1] == '\n') {
             cleaned.push_back('\n');
             ++i;
         } else
             cleaned.push_back(cs[i]);
     }
-    return cs;
+    return cleaned;
 }
 
 static inline auto usage(const std::string& str) -> void {
