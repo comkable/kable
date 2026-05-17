@@ -1,0 +1,10 @@
+
+mov 0 1           ; regByte1Number1 = 1
+mov 1 1           ; regByte1Number2 = 1
+addui8 0 1 0      ; regByte1Number1 = regByte1Number1 + regByte1Number2
+
+mov 1 48          ; regByte1Number1 = '0'(48)
+addui8 0 1 0      ; regByte1Number1 = regByte1Number1 + regByte1Number2
+putchar 0         ; cout << regByte1Number1
+
+goto 0            ; goto the first command as a loop here

@@ -29,6 +29,11 @@
 #include <stdexcept>
 #include <iterator>
 
+constexpr ui8 BIT8TYPE = 0;
+constexpr ui8 BIT16TYPE = 1;
+constexpr ui8 BIT32TYPE = 2;
+constexpr ui8 BIT64TYPE = 3;
+
 using Tokens = std::vector<std::string>;
 using chars = std::vector<char>;
 
@@ -120,9 +125,23 @@ static inline Tokens split(const std::string& s, char sep) {
 static inline std::vector<Tokens> lexer(const std::string& str) {
     std::vector<Tokens> res;
     Tokens lines = split(str, '\n');
+    auto b = lines.begin();
+    auto e = lines.end();
 
-    for (const auto& line : lines) {
+    for (; b != e; b++) {
+        std::string& line = *b;
+
+        auto b_ = line.begin();
+        auto e_ = line.end();
+
+        for (; b_ != e_; b_++)
+            if (*b_ == ';') {
+                line.erase(b_, e_);
+                break;
+            }
+
         Tokens tokens = split(line, ' ');
+
         if (!isEmpty(tokens))
             res.push_back(tokens);
     }
@@ -134,37 +153,39 @@ static inline void usage(const std::string& str) {
     std::exit(EXIT_FAILURE);
 }
 
-static inline void writeReg(chars& buffer, ui8 reg, ui64 data) {
-    ui8 type = reg / 4;
-    buffer.push_back(static_cast<char>(reg));
-
+static inline void write(chars& buffer, ui64 data, ui8 type) {
     switch (type) {
         case 0x0:
             buffer.push_back(static_cast<char>(data & 0xFF));
             break;
         case 0x1:
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
             buffer.push_back(static_cast<char>(data & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
             break;
         case 0x2:
-            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
             buffer.push_back(static_cast<char>(data & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
             break;
         case 0x3:
-            buffer.push_back(static_cast<char>((data >> 56) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 48) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 40) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 32) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
             buffer.push_back(static_cast<char>(data & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 32) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 40) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 48) & 0xFF));
+            buffer.push_back(static_cast<char>((data >> 56) & 0xFF));
             break;
         default:
             throw CompilerError("Invalid register type: " + std::to_string(type));
     }
+}
+
+static inline void writeReg(chars& buffer, ui8 reg, ui64 data) {
+    buffer.push_back(static_cast<char>(reg));
+    write(buffer, data, reg / 4);
 }
 
 static inline chars compiler(const std::string& content) {
@@ -175,17 +196,7 @@ static inline chars compiler(const std::string& content) {
         const std::string& cmd = tokens[0];
         chars buffer;
 
-        if (cmd == "mov") {
-            if (tokens.size() < 3)
-                throw CompilerError("mov syntax: mov <reg> <data>");
-            buffer.push_back(0x00);
-            buffer.push_back(0x01);
-
-            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
-            ui64 data = std::stoull(tokens[2]);
-            writeReg(buffer, reg, data);
-        }
-#define calCmd(name, code) \
+#define MakeCmd(name, code) \
 else if (cmd == name) { \
     if (tokens.size() < 4) \
         throw CompilerError(name " syntax: " name " <reg> <reg> <reg>"); \
@@ -198,25 +209,69 @@ else if (cmd == name) { \
     buffer.push_back(static_cast<char>(r2)); \
     buffer.push_back(static_cast<char>(r3)); \
 }
-        calCmd("addui8", 0x00)
-        calCmd("addui16", 0x01)
-        calCmd("addui32", 0x02)
-        calCmd("addui64", 0x03)
 
-        calCmd("subui8", 0x04)
-        calCmd("subui16", 0x05)
-        calCmd("subui32", 0x06)
-        calCmd("subui64", 0x07)
+#define VoidCmd(name)                               \
+else if (cmd == name) {                             \
+    number++;                                       \
+    throw CompilerError("Cannot run this command"); \
+}
 
-        calCmd("mului8", 0x08)
-        calCmd("mului16", 0x09)
-        calCmd("mului32", 0x0a)
-        calCmd("mului64", 0x0b)
+#define CreateCmd(name)         \
+MakeCmd(name "ui8", number++)   \
+MakeCmd(name "ui16", number++)  \
+MakeCmd(name "ui32", number++)  \
+MakeCmd(name "ui64", number++)  \
+MakeCmd(name "flt32", number++) \
+MakeCmd(name "flt64", number++)
 
-        calCmd("divui8", 0x0c)
-        calCmd("divui16", 0x0d)
-        calCmd("divui32", 0x0e)
-        calCmd("divui64", 0x0f)
+#define CreateBitsCmd(name)     \
+MakeCmd(name "ui8", number++)   \
+MakeCmd(name "ui16", number++)  \
+MakeCmd(name "ui32", number++)  \
+MakeCmd(name "ui64", number++)  \
+VoidCmd(name "flt32")           \
+VoidCmd(name "flt64")
+
+        SizeType number = 0;
+
+        if (cmd == "mov") {
+            if (tokens.size() < 3)
+                throw CompilerError("mov syntax: mov <reg> <data>");
+            buffer.push_back(0x00);
+            buffer.push_back(0x01);
+
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
+            ui64 data = std::stoull(tokens[2]);
+            writeReg(buffer, reg, data);
+        }
+
+        CreateCmd("add")
+        // 5
+        CreateCmd("sub")
+        // 11
+        CreateCmd("mul")
+        // 17
+        CreateCmd("div")
+        // 23
+        CreateCmd("big")
+        // 29
+        CreateCmd("small")
+        // 35
+        CreateCmd("equal")
+        // 41
+        CreateBitsCmd("and")
+        // 47
+        CreateBitsCmd("or")
+        // 53
+        CreateBitsCmd("not")
+        // 59
+        CreateBitsCmd("xor")
+        // 65
+        CreateBitsCmd("logicaland")
+        // 71
+        CreateBitsCmd("logicor")
+        // 77
+        CreateBitsCmd("logicnot")
 
         else if (cmd == "putchar") {
             if (tokens.size() < 2)
@@ -234,8 +289,9 @@ else if (cmd == name) { \
             buffer.push_back(0x02);
             buffer.push_back(0x01);
 
-            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
-            buffer.push_back(static_cast<char>(reg));
+            ui64 location = static_cast<ui64>(std::stoull(tokens[1]));
+
+            write(buffer, location, BIT32TYPE);
         }
 
         else

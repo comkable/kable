@@ -1,4 +1,6 @@
 
+; Hello, world -> 'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd'
+
 mov 0 72
 putchar 0
 

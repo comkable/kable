@@ -1,3 +1,4 @@
+
 // Copyright (c) 2026 comkable
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -20,6 +21,7 @@
 
 #include "define.hpp"
 
+#include <cstring>
 #include <cstdlib>
 #include <vector>
 #include <functional>
@@ -91,6 +93,24 @@ static inline ui64 readI64(const ui8* data) {
     return val;
 }
 
+static inline ui64 readFlt32(const ui8* data) {
+    float val = *reinterpret_cast<const float*>(data);
+
+    if constexpr (std::endian::native == std::endian::big)
+        val = __builtin_bswap32(val);
+
+    return val;
+}
+
+static inline ui64 readFlt64(const ui8* data) {
+    double val = *reinterpret_cast<const double*>(data);
+
+    if constexpr (std::endian::native == std::endian::big)
+        val = __builtin_bswap64(val);
+
+    return val;
+}
+
 #define readReg(d) readI8(d)
 
 static inline void regWrite(const void* data, Reg reg) {
@@ -144,408 +164,72 @@ static inline void* regRead(Reg reg) {
     return nullptr;
 }
 
-struct add {
-    static void Ui8(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
+template <typename T>
+static T readLE(const void* ptr) {
+    T val;
+    std::memcpy(&val, ptr, sizeof(T));
 
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) + readI8(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
+    if constexpr (std::endian::native != std::endian::little) {
+        if constexpr (sizeof(T) == 1) return val;
+        if constexpr (sizeof(T) == 2) return __builtin_bswap16(val);
+        if constexpr (sizeof(T) == 4) return __builtin_bswap32(val);
+        if constexpr (sizeof(T) == 8) return __builtin_bswap64(val);
     }
-    static void Ui16(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) + readI16(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) + readI32(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) + readI64(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        float res = *reinterpret_cast<float*>(regRead(reg1)) + *reinterpret_cast<float*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        double res = *reinterpret_cast<double*>(regRead(reg1)) + *reinterpret_cast<double*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-};
-
-struct sub {
-    static void Ui8(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) - readI8(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui16(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) - readI16(static_cast<ui8*>(regRead(reg2))); // 修复：类型+括号
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) - readI32(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) - readI64(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        float res = *reinterpret_cast<float*>(regRead(reg1)) - *reinterpret_cast<float*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        double res = *reinterpret_cast<double*>(regRead(reg1)) - *reinterpret_cast<double*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-};
-
-struct mul {
-    static void Ui8(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) * readI8(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui16(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) * readI16(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) * readI32(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) * readI64(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        float res = *reinterpret_cast<float*>(regRead(reg1)) * *reinterpret_cast<float*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        double res = *reinterpret_cast<double*>(regRead(reg1)) * *reinterpret_cast<double*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-};
-
-struct div {
-    static void Ui8(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui8 res = readI8(static_cast<ui8*>(regRead(reg1))) / readI8(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui16(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui16 res = readI16(static_cast<ui8*>(regRead(reg1))) / readI16(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui32 res = readI32(static_cast<ui8*>(regRead(reg1))) / readI32(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Ui64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        ui64 res = readI64(static_cast<ui8*>(regRead(reg1))) / readI64(static_cast<ui8*>(regRead(reg2)));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt32(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        float res = *reinterpret_cast<float*>(regRead(reg1)) / *reinterpret_cast<float*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-    static void Flt64(ARGS) {
-        Reg reg1 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg2 = readReg(args);
-        args += sizeofReg;
-
-        Reg reg3 = readReg(args);
-        args += sizeofReg;
-
-        double res = *reinterpret_cast<double*>(regRead(reg1)) / *reinterpret_cast<double*>(regRead(reg2));
-
-        regWrite(&res, reg3);
-
-        i++;
-    }
-};
+    return val;
+}
+
+template <typename T>
+static T readRegVal(Reg r) {
+    return readLE<T>(regRead(r));
+}
+
+template <typename Op, typename T>
+static void binaryOp(ARGS) {
+    Reg r1 = readReg(args); args += sizeofReg;
+    Reg r2 = readReg(args); args += sizeofReg;
+    Reg r3 = readReg(args); args += sizeofReg;
+
+    T a = readRegVal<T>(r1);
+    T b = readRegVal<T>(r2);
+    T res = Op{}(a, b);
+
+    regWrite(&res, r3);
+    i++;
+}
+
+template <typename Op, typename T>
+static void unaryOp(ARGS) {
+    Reg r1 = readReg(args); args += sizeofReg;
+    Reg r2 = readReg(args); args += sizeofReg;
+
+    T a = readRegVal<T>(r1);
+    T res = Op{}(a);
+
+    regWrite(&res, r2);
+    i++;
+}
+
+struct Add { template <typename T> static void Run(ARGS) { binaryOp<std::plus<T>, T>(args, i); } };
+struct Sub { template <typename T> static void Run(ARGS) { binaryOp<std::minus<T>, T>(args, i); } };
+struct Mul { template <typename T> static void Run(ARGS) { binaryOp<std::multiplies<T>, T>(args, i); } };
+struct Div { template <typename T> static void Run(ARGS) { binaryOp<std::divides<T>, T>(args, i); } };
+struct Big { template <typename T> static void Run(ARGS) { binaryOp<std::greater<T>, T>(args, i); } };
+struct Small { template <typename T> static void Run(ARGS) { binaryOp<std::less<T>, T>(args, i); } };
+struct Equal { template <typename T> static void Run(ARGS) { binaryOp<std::equal_to<T>, T>(args, i); } };
+
+struct And { template <typename T> static void Run(ARGS) { binaryOp<std::bit_and<T>, T>(args, i); } };
+struct Or { template <typename T> static void Run(ARGS) { binaryOp<std::bit_or<T>, T>(args, i); } };
+struct Not { template <typename T> static void Run(ARGS) { unaryOp<std::bit_not<T>, T>(args, i); } };
+struct Xor { template <typename T> static void Run(ARGS) { binaryOp<std::bit_xor<T>, T>(args, i); } };
+
+struct LogicalAnd  { template<typename T> static void Run(ARGS) { binaryOp<std::logical_and<T>, T>(args, i); } };
+struct LogicalOr   { template<typename T> static void Run(ARGS) { binaryOp<std::logical_or<T>, T>(args, i); } };
+struct LogicalNot  { template<typename T> static void Run(ARGS) { unaryOp<std::logical_not<T>, T>(args, i); } };
 
 struct mov {
     static void Mov(ARGS) {
-        Reg reg = readReg(args);
-        args += sizeofReg;
-        // printf("%d\n", reg);
-        regWrite(static_cast<const void*>(args), reg);
+        Reg reg = readReg(args); args += sizeofReg;
+        regWrite(args, reg);
         i++;
     }
 };
@@ -561,9 +245,19 @@ struct putchar {
 
 struct goto_ {
     static void goto__(ARGS) {
-        Reg reg = readReg(args);
-        ui32 c = readI32(static_cast<ui8*>(regRead(reg)));
+        ui32 c = readI32(args);
         i = c;
+    }
+};
+
+struct gotoif {
+    static void gotoif_(ARGS) {
+        Reg reg = readReg(args);
+
+        if (readI8(static_cast<ui8*>(regRead(reg))))
+            i = readI32(args);
+        else
+            i++;
     }
 };
 
@@ -586,37 +280,63 @@ std::array<Function, FunctionSize> functions;
 void loadFunctions() {
     for (Function& function : functions)
         function = &cannotUse;
-    
-    functions[0x0] = &add::Ui8;
-    functions[0x1] = &add::Ui16;
-    functions[0x2] = &add::Ui32;
-    functions[0x3] = &add::Ui64;
-    functions[0x4] = &add::Flt32;
-    functions[0x5] = &add::Flt64;
 
-    functions[0x6] = &sub::Ui8;
-    functions[0x7] = &sub::Ui16;
-    functions[0x8] = &sub::Ui32;
-    functions[0x9] = &sub::Ui64;
-    functions[0xa] = &sub::Flt32;
-    functions[0xb] = &sub::Flt64;
+#if 1 // operatings
 
-    functions[0xc] = &mul::Ui8;
-    functions[0xd] = &mul::Ui16;
-    functions[0xe] = &mul::Ui32;
-    functions[0xf] = &mul::Ui64;
-    functions[0x10] = &mul::Flt32;
-    functions[0x11] = &mul::Flt64;
+    SizeType number = 0;
 
-    functions[0x12] = &div::Ui8;
-    functions[0x13] = &div::Ui16;
-    functions[0x14] = &div::Ui32;
-    functions[0x15] = &div::Ui64;
-    functions[0x16] = &div::Flt32;
-    functions[0x17] = &div::Flt64;
+#define CREATE_FUNCTIONS(name)                   \
+do {                                             \
+    functions[number++] = &name::Run<ui8>;       \
+    functions[number++] = &name::Run<ui16>;      \
+    functions[number++] = &name::Run<ui32>;      \
+    functions[number++] = &name::Run<ui64>;      \
+    functions[number++] = &name::Run<float>;     \
+    functions[number++] = &name::Run<double>;    \
+} while (0)
+
+#define CREATE_BITS_FUNCTIONS(name)              \
+do {                                             \
+    functions[number++] = &name::Run<ui8>;       \
+    functions[number++] = &name::Run<ui16>;      \
+    functions[number++] = &name::Run<ui32>;      \
+    functions[number++] = &name::Run<ui64>;      \
+    number++;                                    \
+    number++;                                    \
+} while (0)
+
+        CREATE_FUNCTIONS(Add);
+        // 5
+        CREATE_FUNCTIONS(Sub);
+        // 11
+        CREATE_FUNCTIONS(Mul);
+        // 17
+        CREATE_FUNCTIONS(Div);
+        // 23
+        CREATE_FUNCTIONS(Big);
+        // 29
+        CREATE_FUNCTIONS(Small);
+        // 35
+        CREATE_FUNCTIONS(Equal);
+        // 41
+        CREATE_BITS_FUNCTIONS(And);
+        // 47
+        CREATE_BITS_FUNCTIONS(Or);
+        // 53
+        CREATE_BITS_FUNCTIONS(Not);
+        // 59
+        CREATE_BITS_FUNCTIONS(Xor);
+        // 65
+        CREATE_BITS_FUNCTIONS(LogicalAnd);
+        // 71
+        CREATE_BITS_FUNCTIONS(LogicalOr);
+        // 77
+        CREATE_BITS_FUNCTIONS(LogicalNot);
+#endif
 
     functions[0x100] = &mov::Mov;
     functions[0x101] = &putchar::Putchar;
     functions[0x102] = &goto_::goto__;
+    functions[0x103] = &gotoif::gotoif_;
     // functions[0x102] = &putstring::Putstring;
 }
