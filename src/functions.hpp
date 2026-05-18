@@ -60,6 +60,36 @@ static constexpr ui32 FunctionSize = 4096;
     ui64 regByte8Number2 = 0;
     ui64 regByte8Number3 = 0;
     ui64 regByte8Number4 = 0;
+
+    void printReg() {
+        printf("======================= state =======================\n");
+
+        printf("8  reg:  %02x  %02x  %02x  %02x\n",
+            regByte1Number1,
+            regByte1Number2,
+            regByte1Number3,
+            regByte1Number4);
+
+        printf("16 reg:  %04x  %04x  %04x  %04x\n",
+            regByte2Number1,
+            regByte2Number2,
+            regByte2Number3,
+            regByte2Number4);
+
+        printf("32 reg:  %08x  %08x  %08x  %08x\n",
+            regByte4Number1,
+            regByte4Number2,
+            regByte4Number3,
+            regByte4Number4);
+
+        printf("64 reg:  %016lx  %016lx  %016lx  %016lx\n",
+            regByte8Number1,
+            regByte8Number2,
+            regByte8Number3,
+            regByte8Number4);
+
+        printf("=====================================================\n");
+    }
 #endif
 
 static inline ui8 readI8(const ui8* data) {
@@ -250,14 +280,25 @@ struct goto_ {
     }
 };
 
+#ifdef DEBUG
+    #include <iostream>
+#endif
+
 struct gotoif {
     static void gotoif_(ARGS) {
         Reg reg = readReg(args);
 
+#ifdef DEBUG
+        std::cout << "condition: " << static_cast<int>(readI8(static_cast<ui8*>(regRead(reg)))) << std::endl;
+#endif
+
         if (readI8(static_cast<ui8*>(regRead(reg))))
-            i = readI32(args);
+            i = readI32(args + 1);
         else
             i++;
+#if DEBUG
+        std::cout << "curr(gotoif): " << i << std::endl;
+#endif
     }
 };
 
@@ -338,5 +379,4 @@ do {                                             \
     functions[0x101] = &putchar::Putchar;
     functions[0x102] = &goto_::goto__;
     functions[0x103] = &gotoif::gotoif_;
-    // functions[0x102] = &putstring::Putstring;
 }

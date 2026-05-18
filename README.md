@@ -1,5 +1,9 @@
 # kable
 Kable gets its name from my own name plus the suffix "-able".
+## note
+kable is .
+kasm is C++11.
+vml is C++20.
 ## How can it do
 It supports all features that other programming languages have.
 Currently, it is still under development.

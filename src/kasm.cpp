@@ -18,6 +18,7 @@
 
 #include "define.hpp"
 
+#include <unordered_map>
 #include <cctype>
 #include <vector>
 #include <fstream>
@@ -189,50 +190,62 @@ static inline void writeReg(chars& buffer, ui8 reg, ui64 data) {
 }
 
 static inline chars compiler(const std::string& content) {
-    std::vector<Tokens> instructions = lexer(content);
+    std::vector<Tokens> instructions_ = lexer(content);
+    std::vector<Tokens> instructions;
     chars binary;
+    std::unordered_map<std::string, ui32> map;
+    ui32 i = 0;
+
+    for (const auto& tokens : instructions_) {
+        const std::string& cmd = tokens[0];
+        
+        if (cmd == "label")
+            map[tokens[1]] = i;
+        else
+            instructions.emplace_back(tokens);
+        
+        i++;
+    }
 
     for (const auto& tokens : instructions) {
         const std::string& cmd = tokens[0];
         chars buffer;
 
-#define MakeCmd(name, code) \
-else if (cmd == name) { \
-    if (tokens.size() < 4) \
+#define MakeCmd(name, code)                            \
+if (cmd == name) {                                     \
+    if (tokens.size() < 4)                             \
         throw CompilerError(name " syntax: " name " <reg> <reg> <reg>"); \
-    buffer.push_back(0x00); \
-    buffer.push_back(code); \
+    buffer.push_back(code);                            \
+    buffer.push_back(0x00);                            \
     ui8 r1 = static_cast<ui8>(std::stoull(tokens[1])); \
     ui8 r2 = static_cast<ui8>(std::stoull(tokens[2])); \
     ui8 r3 = static_cast<ui8>(std::stoull(tokens[3])); \
-    buffer.push_back(static_cast<char>(r1)); \
-    buffer.push_back(static_cast<char>(r2)); \
-    buffer.push_back(static_cast<char>(r3)); \
+    buffer.push_back(static_cast<char>(r1));           \
+    buffer.push_back(static_cast<char>(r2));           \
+    buffer.push_back(static_cast<char>(r3));           \
+    goto over;                                         \
 }
 
-#define VoidCmd(name)                               \
-else if (cmd == name) {                             \
-    number++;                                       \
-    throw CompilerError("Cannot run this command"); \
+#define VoidCmd(name)                                 \
+if (cmd == name) {                                    \
+    throw CompilerError("Cannot run this command");   \
 }
 
-#define CreateCmd(name)         \
-MakeCmd(name "ui8", number++)   \
-MakeCmd(name "ui16", number++)  \
-MakeCmd(name "ui32", number++)  \
-MakeCmd(name "ui64", number++)  \
-MakeCmd(name "flt32", number++) \
-MakeCmd(name "flt64", number++)
+#define CreateCmd(name, code)     \
+MakeCmd(name "ui8", code)         \
+MakeCmd(name "ui16", code + 1)    \
+MakeCmd(name "ui32", code + 2)    \
+MakeCmd(name "ui64", code + 3)    \
+MakeCmd(name "flt32", code + 4)   \
+MakeCmd(name "flt64", code + 5)
 
-#define CreateBitsCmd(name)     \
-MakeCmd(name "ui8", number++)   \
-MakeCmd(name "ui16", number++)  \
-MakeCmd(name "ui32", number++)  \
-MakeCmd(name "ui64", number++)  \
-VoidCmd(name "flt32")           \
+#define CreateBitsCmd(name, code)  \
+MakeCmd(name "ui8", code)          \
+MakeCmd(name "ui16", code + 1)     \
+MakeCmd(name "ui32", code + 2)     \
+MakeCmd(name "ui64", code + 3)     \
+VoidCmd(name "flt32")              \
 VoidCmd(name "flt64")
-
-        SizeType number = 0;
 
         if (cmd == "mov") {
             if (tokens.size() < 3)
@@ -243,37 +256,26 @@ VoidCmd(name "flt64")
             ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
             ui64 data = std::stoull(tokens[2]);
             writeReg(buffer, reg, data);
+            
+            goto over;
         }
 
-        CreateCmd("add")
-        // 5
-        CreateCmd("sub")
-        // 11
-        CreateCmd("mul")
-        // 17
-        CreateCmd("div")
-        // 23
-        CreateCmd("big")
-        // 29
-        CreateCmd("small")
-        // 35
-        CreateCmd("equal")
-        // 41
-        CreateBitsCmd("and")
-        // 47
-        CreateBitsCmd("or")
-        // 53
-        CreateBitsCmd("not")
-        // 59
-        CreateBitsCmd("xor")
-        // 65
-        CreateBitsCmd("logicaland")
-        // 71
-        CreateBitsCmd("logicor")
-        // 77
-        CreateBitsCmd("logicnot")
+        CreateCmd("add", 0x00)
+        CreateCmd("sub", 0x06)
+        CreateCmd("mul", 0xc)
+        CreateCmd("div", 0x12)
+        CreateCmd("big", 0x18)
+        CreateCmd("small", 0x1e)
+        CreateCmd("equal", 0x24)
+        CreateBitsCmd("and", 0x2a)
+        CreateBitsCmd("or", 0x30)
+        CreateBitsCmd("not", 0x36)
+        CreateBitsCmd("xor", 0x3c)
+        CreateBitsCmd("logicaland", 0x42)
+        CreateBitsCmd("logicor", 0x48)
+        CreateBitsCmd("logicnot", 0x4e)
 
-        else if (cmd == "putchar") {
+        if (cmd == "putchar") {
             if (tokens.size() < 2)
                 throw CompilerError("putchar syntax: putchar <reg>");
             buffer.push_back(0x01);
@@ -281,21 +283,55 @@ VoidCmd(name "flt64")
 
             ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
             buffer.push_back(static_cast<char>(reg));
+
+            goto over;
         }
 
-        else if (cmd == "goto") {
+        if (cmd == "goto") {
             if (tokens.size() < 2)
-                throw CompilerError("putchar syntax: putchar <reg>");
+                throw CompilerError("goto syntax: goto <label/number>");
+
             buffer.push_back(0x02);
             buffer.push_back(0x01);
 
-            ui64 location = static_cast<ui64>(std::stoull(tokens[1]));
+            ui64 location;
+
+            if (map.count(tokens[1]))
+                location = map[tokens[1]];
+            else
+                location = static_cast<ui64>(std::stoull(tokens[1]));
 
             write(buffer, location, BIT32TYPE);
+
+            goto over;
+        }
+
+        if (cmd == "gotoif") {
+            if (tokens.size() < 3)
+                throw CompilerError("gotoif syntax: gotoif <label/number> <reg>");
+
+            buffer.push_back(0x03);
+            buffer.push_back(0x01);
+
+            ui64 location;
+
+            if (map.count(tokens[1]))
+                location = map[tokens[1]];
+            else
+                location = static_cast<ui64>(std::stoull(tokens[1]));
+            
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[2]));
+
+            buffer.push_back(static_cast<char>(reg));
+            write(buffer, location, BIT32TYPE);
+
+            goto over;
         }
 
         else
             throw CompilerError("Unknown command: " + cmd);
+
+over:
 
         binary.push_back(static_cast<char>(buffer.size()));
         binary.insert(binary.end(), buffer.begin(), buffer.end());

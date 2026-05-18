@@ -75,7 +75,6 @@ static inline void executeLine(chars& cs, SizeType& i) {
         exit(EXIT_FAILURE);
     }
     ui16 command = readI16(dataPtr);
-    // printf("%d\n", command);
 
     ui8* argsPtr = reinterpret_cast<ui8*>(dataPtr) + sizeof(command);
 
@@ -87,6 +86,12 @@ static inline void executeLine(chars& cs, SizeType& i) {
     }
 
     func(argsPtr, i);
+
+#ifdef DEBUG
+    _sleep(100);
+    printReg();
+    std::cout << "curr: " << i << std::endl;
+#endif
 }
 
 // std::pair<ui8, chars> -> command is faster
@@ -127,7 +132,9 @@ static inline void execute(chars& cs) {
         lines.push_back(std::move(temp));
     }
 
-    // Functions::printLines(lines);
+#ifdef DEBUG
+    Functions::printLines(lines);
+#endif
 
     for (SizeType i = 0; i < lines.size(); )
         executeLine(lines[i], i);
