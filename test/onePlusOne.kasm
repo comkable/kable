@@ -1,8 +1,8 @@
 
-mov 0 1           ; reg0 = 1
-mov 1 1           ; reg1 = 1
-addui8 0 1 0      ; reg0 = reg0 + reg1
+mov 0 from 1           ; reg0 = 1
+mov 1 from 1           ; reg1 = 1
+addui8 0 1 to 0      ; reg0 = reg0 + reg1
 
-mov 1 48          ; reg0 = '0'(48)
-addui8 0 1 0      ; reg0 = reg0 + reg1
-putchar 0         ; cout << reg0
+mov 1 from 48          ; reg0 = '0'(48)
+addui8 0 1 to 0      ; reg0 = reg0 + reg1
+putchar from 0         ; cout << reg0

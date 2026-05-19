@@ -19,8 +19,11 @@
 // OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
+#pragma once
+
 #include "define.hpp"
 
+#include <stdexcept>
 #include <cstring>
 #include <cstdlib>
 #include <vector>
@@ -29,6 +32,8 @@
 #include <array>
 #include <bit>
 #include <cstdint>
+
+#include <iostream>
 
 #define ARGS ui8* args, SizeType& i
 
@@ -39,6 +44,18 @@ using Reg = ui8;
 
 static constexpr ui8 sizeofReg = sizeof(Reg);
 static constexpr ui32 FunctionSize = 4096;
+static constexpr SizeType MemorySize = 0x100000;
+
+static std::array<ui8, MemorySize> memory;
+
+static inline void showMemory() {
+    for (ui16 i = 0; i < 100; i++) {
+        std::string str = std::to_string(static_cast<int>(memory[i]));
+        std::cout << str;
+        for (ui8 i = 0; i < 4 - str.size(); i++)
+            std::cout << " ";
+    }
+}
 
 #if 1 // regs
     ui8 regByte1Number1 = 0;
@@ -62,6 +79,8 @@ static constexpr ui32 FunctionSize = 4096;
     ui64 regByte8Number4 = 0;
 
     void printReg() {
+        showMemory();
+
         printf("======================= state =======================\n");
 
         printf("8  reg:  %02x  %02x  %02x  %02x\n",
@@ -169,29 +188,109 @@ static inline void regWrite(const void* data, Reg reg) {
     }
 }
 
+std::array<void*, 0x10> regTable = {
+    &regByte1Number1,
+    &regByte1Number2,
+    &regByte1Number3,
+    &regByte1Number4,
+    &regByte2Number1,
+    &regByte2Number2,
+    &regByte2Number3,
+    &regByte2Number4,
+    &regByte4Number1,
+    &regByte4Number2,
+    &regByte4Number3,
+    &regByte4Number4,
+    &regByte8Number1,
+    &regByte8Number2,
+    &regByte8Number3,
+    &regByte8Number4
+};
+
 static inline void* regRead(Reg reg) {
+    return regTable[reg]; // no error
+}
+
+static inline ui64 regReadI64(Reg reg) {
     switch (reg) {
-    case 0x0: return &regByte1Number1;
-    case 0x1: return &regByte1Number2;
-    case 0x2: return &regByte1Number3;
-    case 0x3: return &regByte1Number4;
+    case 0x0: return regByte1Number1;
+    case 0x1: return regByte1Number2;
+    case 0x2: return regByte1Number3;
+    case 0x3: return regByte1Number4;
 
-    case 0x4: return &regByte2Number1;
-    case 0x5: return &regByte2Number2;
-    case 0x6: return &regByte2Number3;
-    case 0x7: return &regByte2Number4;
+    case 0x4: return regByte2Number1;
+    case 0x5: return regByte2Number2;
+    case 0x6: return regByte2Number3;
+    case 0x7: return regByte2Number4;
 
-    case 0x8: return &regByte4Number1;
-    case 0x9: return &regByte4Number2;
-    case 0xa: return &regByte4Number3;
-    case 0xb: return &regByte4Number4;
+    case 0x8: return regByte4Number1;
+    case 0x9: return regByte4Number2;
+    case 0xa: return regByte4Number3;
+    case 0xb: return regByte4Number4;
 
-    case 0xc: return &regByte8Number1;
-    case 0xd: return &regByte8Number2;
-    case 0xe: return &regByte8Number3;
-    case 0xf: return &regByte8Number4;
+    case 0xc: return regByte8Number1;
+    case 0xd: return regByte8Number2;
+    case 0xe: return regByte8Number3;
+    case 0xf: return regByte8Number4;
+
+    default: return -1;
     }
-    return nullptr;
+}
+
+static inline void readMemoryToReg(ui64 location, Reg reg) {
+    regWrite(memory.data() + location, reg);
+}
+
+static inline void write(ui8* buffer, ui64 data, ui8 type) {
+    switch (type) {
+        case 0x0:
+            buffer[0] = data & 0xFF;
+            break;
+        case 0x1:
+            buffer[0] = data & 0xFF;
+            buffer[1] = (data >> 8) & 0xFF;
+            break;
+        case 0x2:
+            buffer[0] = data & 0xFF;
+            buffer[1] = (data >> 8) & 0xFF;
+            buffer[2] = (data >> 16) & 0xFF;
+            buffer[3] = (data >> 24) & 0xFF;
+            break;
+        case 0x3:
+            buffer[0] = data & 0xFF;
+            buffer[1] = (data >> 8) & 0xFF;
+            buffer[2] = (data >> 16) & 0xFF;
+            buffer[3] = (data >> 24) & 0xFF;
+            buffer[4] = (data >> 32) & 0xFF;
+            buffer[5] = (data >> 40) & 0xFF;
+            buffer[6] = (data >> 48) & 0xFF;
+            buffer[7] = (data >> 56) & 0xFF;
+            break;
+        default:
+            throw std::runtime_error("Invalid register type: " + std::to_string(type));
+    }
+}
+
+static inline void writeMemory(ui64 location, ui64 data, ui8 type) {
+    write(memory.data() + location, data, type);
+}
+
+template <typename T>
+static inline T readMemory(ui64 location, ui8 type) {
+    switch (type) {
+    case 0x00:
+        return readI8(memory[location]);
+        break;
+    case 0x01:
+        return readI16(memory[location]);
+        break;
+    case 0x02:
+        return readI32(memory[location]);
+        break;
+    case 0x03:
+        return readI64(memory[location]);
+        break;
+    }
 }
 
 template <typename T>
@@ -280,10 +379,6 @@ struct goto_ {
     }
 };
 
-#ifdef DEBUG
-    #include <iostream>
-#endif
-
 struct gotoif {
     static void gotoif_(ARGS) {
         Reg reg = readReg(args);
@@ -299,6 +394,28 @@ struct gotoif {
 #if DEBUG
         std::cout << "curr(gotoif): " << i << std::endl;
 #endif
+    }
+};
+
+struct store {
+    static void Store(ARGS) {
+        Reg r = readReg(args); args += sizeofReg;
+        ui32 location = readI32(args);
+
+        writeMemory(location, regReadI64(r), r / 4);
+
+        i++;
+    }
+};
+
+struct load {
+    static void Load(ARGS) {
+        Reg r = readReg(args); args += sizeofReg;
+        ui32 location = readI32(args);
+
+        readMemoryToReg(location, r);
+
+        i++;
     }
 };
 
@@ -318,7 +435,7 @@ static inline void cannotUse(ARGS) {
 // TODO
 std::array<Function, FunctionSize> functions;
 
-void loadFunctions() {
+static inline void loadFunctions() {
     for (Function& function : functions)
         function = &cannotUse;
 
@@ -379,4 +496,14 @@ do {                                             \
     functions[0x101] = &putchar::Putchar;
     functions[0x102] = &goto_::goto__;
     functions[0x103] = &gotoif::gotoif_;
+
+    functions[0x104] = &store::Store;
+    functions[0x105] = &load::Load;
+}
+
+static inline void start() {
+    loadFunctions();
+
+    for (ui8& v : memory)
+        v = 0;
 }

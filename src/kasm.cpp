@@ -213,13 +213,13 @@ static inline chars compiler(const std::string& content) {
 
 #define MakeCmd(name, code)                            \
 if (cmd == name) {                                     \
-    if (tokens.size() < 4)                             \
-        throw CompilerError(name " syntax: " name " <reg> <reg> <reg>"); \
+    if (tokens.size() < 5)                             \
+        throw CompilerError(name " syntax: " name " <reg> <reg> <any-string> <reg>"); \
     buffer.push_back(code);                            \
     buffer.push_back(0x00);                            \
     ui8 r1 = static_cast<ui8>(std::stoull(tokens[1])); \
     ui8 r2 = static_cast<ui8>(std::stoull(tokens[2])); \
-    ui8 r3 = static_cast<ui8>(std::stoull(tokens[3])); \
+    ui8 r3 = static_cast<ui8>(std::stoull(tokens[4])); \
     buffer.push_back(static_cast<char>(r1));           \
     buffer.push_back(static_cast<char>(r2));           \
     buffer.push_back(static_cast<char>(r3));           \
@@ -248,13 +248,13 @@ VoidCmd(name "flt32")              \
 VoidCmd(name "flt64")
 
         if (cmd == "mov") {
-            if (tokens.size() < 3)
-                throw CompilerError("mov syntax: mov <reg> <data>");
+            if (tokens.size() < 4)
+                throw CompilerError("mov syntax: mov <reg> <any-string> <data>");
             buffer.push_back(0x00);
             buffer.push_back(0x01);
 
             ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
-            ui64 data = std::stoull(tokens[2]);
+            ui64 data = std::stoull(tokens[3]);
             writeReg(buffer, reg, data);
             
             goto over;
@@ -276,30 +276,30 @@ VoidCmd(name "flt64")
         CreateBitsCmd("logicnot", 0x4e)
 
         if (cmd == "putchar") {
-            if (tokens.size() < 2)
-                throw CompilerError("putchar syntax: putchar <reg>");
+            if (tokens.size() < 3)
+                throw CompilerError("putchar syntax: putchar <any-string> <reg>");
             buffer.push_back(0x01);
             buffer.push_back(0x01);
 
-            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[2]));
             buffer.push_back(static_cast<char>(reg));
 
             goto over;
         }
 
         if (cmd == "goto") {
-            if (tokens.size() < 2)
-                throw CompilerError("goto syntax: goto <label/number>");
+            if (tokens.size() < 3)
+                throw CompilerError("goto syntax: goto <any-string> <label/number>");
 
             buffer.push_back(0x02);
             buffer.push_back(0x01);
 
             ui64 location;
 
-            if (map.count(tokens[1]))
-                location = map[tokens[1]];
+            if (map.count(tokens[2]))
+                location = map[tokens[2]];
             else
-                location = static_cast<ui64>(std::stoull(tokens[1]));
+                location = static_cast<ui64>(std::stoull(tokens[2]));
 
             write(buffer, location, BIT32TYPE);
 
@@ -307,8 +307,8 @@ VoidCmd(name "flt64")
         }
 
         if (cmd == "gotoif") {
-            if (tokens.size() < 3)
-                throw CompilerError("gotoif syntax: gotoif <label/number> <reg>");
+            if (tokens.size() < 4)
+                throw CompilerError("gotoif syntax: gotoif <label/number> <any-string> <reg>");
 
             buffer.push_back(0x03);
             buffer.push_back(0x01);
@@ -320,7 +320,39 @@ VoidCmd(name "flt64")
             else
                 location = static_cast<ui64>(std::stoull(tokens[1]));
             
-            ui8 reg = static_cast<ui8>(std::stoull(tokens[2]));
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[3]));
+
+            buffer.push_back(static_cast<char>(reg));
+            write(buffer, location, BIT32TYPE);
+
+            goto over;
+        }
+
+        if (cmd == "str") {
+            if (tokens.size() < 4)
+                throw CompilerError("str syntax: str <reg> <any-string> <location>");
+            
+            buffer.push_back(0x04);
+            buffer.push_back(0x01);
+
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
+            ui64 location = static_cast<ui64>(std::stoull(tokens[3]));
+
+            buffer.push_back(static_cast<char>(reg));
+            write(buffer, location, BIT32TYPE);
+
+            goto over;
+        }
+        
+        if (cmd == "load") {
+            if (tokens.size() < 4)
+                throw CompilerError("load syntax: str <reg> <any-string> <location>");
+            
+            buffer.push_back(0x05);
+            buffer.push_back(0x01);
+
+            ui8 reg = static_cast<ui8>(std::stoull(tokens[1]));
+            ui64 location = static_cast<ui64>(std::stoull(tokens[3]));
 
             buffer.push_back(static_cast<char>(reg));
             write(buffer, location, BIT32TYPE);

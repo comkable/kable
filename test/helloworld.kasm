@@ -1,38 +1,38 @@
 
 ; Hello, world -> 'H', 'e', 'l', 'l', 'o', ',', ' ', 'w', 'o', 'r', 'l', 'd'
 
-mov 0 72
-putchar 0
+mov 0 from 72
+putchar from 0
 
-mov 0 101
-putchar 0
+mov 0 from 101
+putchar from 0
 
-mov 0 108
-putchar 0
+mov 0 from 108
+putchar from 0
 
-mov 0 108
-putchar 0
+mov 0 from 108
+putchar from 0
 
-mov 0 111
-putchar 0
+mov 0 from 111
+putchar from 0
 
-mov 0 44
-putchar 0
+mov 0 from 44
+putchar from 0
 
-mov 0 32
-putchar 0
+mov 0 from 32
+putchar from 0
 
-mov 0 119
-putchar 0
+mov 0 from 119
+putchar from 0
 
-mov 0 111
-putchar 0
+mov 0 from 111
+putchar from 0
 
-mov 0 114
-putchar 0
+mov 0 from 114
+putchar from 0
 
-mov 0 108
-putchar 0
+mov 0 from 108
+putchar from 0
 
-mov 0 100
-putchar 0
+mov 0 from 100
+putchar from 0

@@ -146,7 +146,7 @@ int main(int argc, char** _argv) {
     if (argv.size() < 2)
         usage(argv[0]);
 
-    loadFunctions();
+    start();
     std::string inputFile = argv[1];
     chars cs = readAll(inputFile);
     execute(cs);
