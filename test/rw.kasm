@@ -1,7 +1,0 @@
-
-; ui16 i = 'A'; putchar(i);
-
-mov 5 from 65  ; reg5 = 65
-str 5 to 0     ; reg5 -> 0
-load 6 from 0  ; reg6 <- 0
-putchar from 6 ; print(reg6) should be 'A'
