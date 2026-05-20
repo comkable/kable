@@ -1,20 +1,20 @@
-                       ; init ( ui8 i = 0; )
+                                ; init ( ui8 i = 0; )
 mov reg0 from 48
 str reg0 to 0
-                       ; start
-mov reg0 from 1           ; reg0 = 0    condition
-mov reg1 from 0           ; reg1 = 0    counter
-mov reg2 from 1           ; reg2 = 1    countant
-mov reg3 from 9           ; reg3 = 9    complex here
+                                ; start
+mov reg0 from 1                 ; reg0 = 0    condition
+mov reg1 from 0                 ; reg1 = 0    counter
+mov reg2 from 1                 ; reg2 = 1    countant
+mov reg3 from 9                 ; reg3 = 9    complex here
 
-label loop             ; define a label of a loop
+label loop                      ; define a label of a loop
 
     addui8 reg1 reg2 to reg1    ; reg1 = reg1 + reg2
     smallui8 reg1 reg3 to reg0  ; reg0 = reg1 < reg3
 
-    load reg3 from 0      ; reg3 = i
+    load reg3 from 0            ; reg3 = i
     addui8 reg1 reg3 to reg3    ; reg3 = reg1 + reg3
-    putchar from reg3     ; print(reg3) (number)
-    mov reg3 from 9       ; reset reg3
+    putchar from reg3           ; print(reg3) (number)
+    mov reg3 from 9             ; reset reg3
 
-gotoif loop if reg0       ; while (reg0)
+gotoif loop if reg0             ; while (reg0)

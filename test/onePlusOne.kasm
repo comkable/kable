@@ -1,8 +1,8 @@
 
 mov reg0 from 1           ; reg0 = 1
 mov reg1 from 1           ; reg1 = 1
-addui8 reg0 reg1 to reg0      ; reg0 = reg0 + reg1
+addui8 reg0 reg1 to reg0  ; reg0 = reg0 + reg1
 
 mov reg1 from 48          ; reg0 = '0'(48)
-addui8 reg0 reg1 to reg0      ; reg0 = reg0 + reg1
+addui8 reg0 reg1 to reg0  ; reg0 = reg0 + reg1
 putchar from reg0         ; cout << reg0
