@@ -19,4 +19,4 @@ It follows modern design ideas. There are no complicated and intricate syntax, r
 Kable is tiny and so bright. It is fully written in C++ and you can see all of it.
 4. Cross-platform
 Powered by its built-in virtual machine, it can run programs smoothly across different platforms.
-## by comkable
+# by comkable
