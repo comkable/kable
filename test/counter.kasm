@@ -17,4 +17,4 @@ label loop                      ; define a label of a loop
     putchar from reg3           ; print(reg3) (number)
     mov reg3 from 9             ; reset reg3
 
-gotoif loop if reg0             ; while (reg0)
+goes to loop if reg0             ; while (reg0)

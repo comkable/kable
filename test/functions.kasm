@@ -1,0 +1,24 @@
+
+mov reg4 from 1  ; constant
+mov reg3 from 48 ; '0'
+
+mov reg0 from 5  ; ui8 i = 0
+str reg0 to 0
+
+go to inc         ; inc(i)
+
+label return     ; return for a label
+
+load reg0 from 0 ; read i
+
+addui8 reg0 reg3 to reg0
+putchar from reg0     ; output
+
+halt             ; halt
+
+label inc        ; inc @ void(refer<ui8> i)
+    load reg0 from 0
+    addui8 reg0 reg4 to reg0
+    str reg0 to 0
+    go to return
+

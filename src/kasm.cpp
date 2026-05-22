@@ -294,9 +294,9 @@ VoidCmd(name "flt64")
             goto over;
         }
 
-        if (cmd == "goto") {
+        if (cmd == "go") {
             if (tokens.size() < 3)
-                throw CompilerError("goto syntax: goto <any-string> <label/number>");
+                throw CompilerError("go syntax: go <any-string> <label/number>");
 
             buffer.push_back(0x02);
             buffer.push_back(0x01);
@@ -313,21 +313,21 @@ VoidCmd(name "flt64")
             goto over;
         }
 
-        if (cmd == "gotoif") {
+        if (cmd == "goes") {
             if (tokens.size() < 4)
-                throw CompilerError("gotoif syntax: gotoif <label/number> <any-string> <reg>");
+                throw CompilerError("goes syntax: goes <any-string> <label/number> <any-string> <reg>");
 
             buffer.push_back(0x03);
             buffer.push_back(0x01);
 
             ui64 location;
 
-            if (map.count(tokens[1]))
-                location = map[tokens[1]];
+            if (map.count(tokens[2]))
+                location = map[tokens[2]];
             else
-                location = static_cast<ui64>(std::stoull(tokens[1]));
+                location = static_cast<ui64>(std::stoull(tokens[2]));
 
-            ui8 reg = storeg(tokens[3]);
+            ui8 reg = storeg(tokens[4]);
 
             buffer.push_back(static_cast<char>(reg));
             write(buffer, location, BIT32TYPE);
@@ -364,6 +364,44 @@ VoidCmd(name "flt64")
             buffer.push_back(static_cast<char>(reg));
             write(buffer, location, BIT32TYPE);
 
+            goto over;
+        }
+
+        if (cmd == "gous") {
+            if (tokens.size() < 3)
+                throw CompilerError("gous syntax: gous <any-string> <reg>");
+
+            buffer.push_back(0x06);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[2]);
+
+            buffer.push_back(static_cast<char>(reg));
+
+            goto over;
+        }
+
+        if (cmd == "goesus") {
+            if (tokens.size() < 4)
+                throw CompilerError("goesus syntax: goesus <any-string> <reg> <any-string> <reg>");
+
+            buffer.push_back(0x07);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[2]);
+            ui8 reg2 = storeg(tokens[4]);
+
+            buffer.push_back(static_cast<char>(reg));
+            buffer.push_back(static_cast<char>(reg2));
+
+            goto over;
+        }
+
+        if (cmd == "halt") {
+
+            buffer.push_back(0xFF);
+            buffer.push_back(0xF);
+            
             goto over;
         }
 

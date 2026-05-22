@@ -48,6 +48,9 @@ static constexpr SizeType MemorySize = 0x100000;
 
 static std::array<ui8, MemorySize> memory;
 
+static std::vector<ui32> returns; // may be crazy here
+static SizeType returnsPtr = 0;
+
 static inline void showMemory() {
     for (ui16 i = 0; i < 100; i++) {
         std::string str = std::to_string(static_cast<int>(memory[i]));
@@ -366,7 +369,7 @@ struct mov {
 struct putchar {
     static void Putchar(ARGS) {
         Reg reg = readReg(args);
-        char c = readI8(static_cast<ui8*>(regRead(reg)));
+        char c = readRegVal<ui8>(reg);
         ioChar(c);
         i++;
     }
@@ -383,17 +386,10 @@ struct gotoif {
     static void gotoif_(ARGS) {
         Reg reg = readReg(args);
 
-#ifdef DEBUG
-        std::cout << "condition: " << static_cast<int>(readI8(static_cast<ui8*>(regRead(reg)))) << std::endl;
-#endif
-
-        if (readI8(static_cast<ui8*>(regRead(reg))))
+        if (readRegVal<ui8>(reg))
             i = readI32(args + 1);
         else
             i++;
-#if DEBUG
-        std::cout << "curr(gotoif): " << i << std::endl;
-#endif
     }
 };
 
@@ -410,28 +406,39 @@ struct store {
 
 struct load {
     static void Load(ARGS) {
-        Reg r = readReg(args); args += sizeofReg;
+        Reg reg = readReg(args); args += sizeofReg;
         ui32 location = readI32(args);
 
-        readMemoryToReg(location, r);
+        readMemoryToReg(location, reg);
 
         i++;
     }
 };
 
-// struct putstring {
-//     static void Putstring(ARGS) {
-//         Reg reg = readReg(args);
-//         char c = readI8(static_cast<char*>(regRead(reg));
-//         ioChar(c);
-//     }
-// };
+struct gotous {
+    static inline void Gotous(ARGS) {
+        Reg reg = readReg(args);
+
+        i = readRegVal<ui32>(reg);
+    }
+};
+
+struct gotoifus {
+    static inline void Gotoifus(ARGS) {
+        Reg reg = readReg(args); args += sizeofReg;
+        Reg reg2 = readReg(args); args += sizeofReg;
+
+        if (readRegVal<ui8>(reg2))
+            i = readRegVal<ui32>(reg);
+        else
+            i++;
+    }
+};
 
 static inline void cannotUse(ARGS) {
     ioString("This cannot be used.\n");
     exit(EXIT_FAILURE);
 }
-
 // TODO
 std::array<Function, FunctionSize> functions;
 
@@ -499,6 +506,13 @@ do {                                             \
 
     functions[0x104] = &store::Store;
     functions[0x105] = &load::Load;
+
+    functions[0x106] = &gotous::Gotous;
+    functions[0x107] = &gotoifus::Gotoifus;
+
+    functions[FunctionSize-1] = [](ARGS) -> void { // halt
+        exit(EXIT_SUCCESS);
+    };
 }
 
 static inline void start() {
