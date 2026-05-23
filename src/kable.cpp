@@ -25,16 +25,15 @@
 #include <cstring>
 #include <cstdlib>
 #include <stdexcept>
-#include <vector>
-#include <string>
+#include <unordered_map>
 #include <iostream>
 #include <fstream>
-#include <algorithm>
-#include <iostream>
+#include <tuple>
 #include <vector>
 #include <string>
 #include <cstdint>
 #include <algorithm>
+#include <array>
 
 using ui16 = uint16_t;
 
@@ -113,7 +112,6 @@ enum Type : uint16_t {
     ALL,
     IF, ELSE, WHILE, END,
     KASM,
-    DIGITS, IDENTIFIER,
     OPERATOR,
         BIGGER, SMALLER, EQUALS, EQUAL, AND, OR, NOT,
         BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
@@ -125,7 +123,7 @@ enum Type : uint16_t {
         COMMA, PARAMS, STMTS, TYPES, NAMES, BODY,
     AT, RETURN,
     INCLUDE,
-        STRING, CHAR, FLOAT, EXPR,
+        STRING, CHAR, FLOAT, EXPR, DIGITS, IDENTIFIER,
     UNKNOWN
 };
 
@@ -146,11 +144,13 @@ using Tokens = std::vector<Token>;
 
 class AST {
     using ASTs = std::vector<AST*>;
-private:
+
+public:
     ASTs asts;
     std::string str;
+    SizeType line;
     Type type;
-public:
+
     AST() = default;
 
     AST(const AST& other) 
@@ -159,8 +159,8 @@ public:
             asts.push_back(new AST(*child));
     }
 
-    AST(const ASTs& asts, const std::string& str, Type type)
-        : str(str), type(type) {
+    AST(const ASTs& asts, const std::string& str, SizeType line, Type type)
+        : str(str), line(line), type(type) {
         for (const AST* ast : asts)
             if (ast) this->asts.push_back(new AST(*ast));
     }
@@ -230,9 +230,9 @@ auto checkType() -> bool {
 }
 
 auto factor() -> AST* {
-    if (matchValue()) {
-        return new AST({}, tokens[pos-1].str, EXPR);
-    }
+    if (matchValue())
+        return new AST({}, tokens[pos-1].str, tokens[pos-1].line, EXPR);
+
     if (match(LEFT_PAREN)) {
         AST* a = expr();
         if (!match(RIGHT_PAREN))
@@ -253,7 +253,7 @@ auto term1() -> AST* {
 
         AST* right = factor();
 
-        left = new AST({left, right}, op, EXPR);
+        left = new AST({left, right}, op, tokens[pos - 1].line, EXPR);
     }
 
     return left;
@@ -270,7 +270,7 @@ auto expr() -> AST* {
 
         AST* right = term1();
 
-        left = new AST({left, right}, op, EXPR);
+        left = new AST({left, right}, op, tokens[pos - 1].line, EXPR);
     }
 
     return left;
@@ -278,7 +278,7 @@ auto expr() -> AST* {
 
 auto type() -> AST* {
     if (match(IDENTIFIER)) {
-        return new AST({}, tokens[pos-1].str, TYPES);
+        return new AST({}, tokens[pos - 1].str, tokens[pos - 1].line, TYPES);
     }
 
     throw ASTError("Expected a type", tokens[pos].line);
@@ -300,7 +300,7 @@ auto stmt() -> AST* {
         if (!RIGHT_PAREN)
             throw ASTError("Excepted a ) after all kasm", tokens[pos].line);
 
-        return new AST({}, str, KASM);
+        return new AST({}, str, tokens[pos - 1].line, KASM);
     }
     else
         throw ASTError("Excepted a stmt", tokens[pos].line);
@@ -312,7 +312,7 @@ auto main() -> AST* {
     while (pos < tokens.size())
         main.push_back(stmt());
 
-    return new AST(main, "", ALL);
+    return new AST(main, "", tokens[pos - 1].line, ALL);
 };
 };
 
@@ -320,8 +320,6 @@ auto main() -> AST* {
         AST* ast = f.main();
         return ast;
     }
-    
-    friend std::string kasm(AST* ast);
 };
 
 static inline auto printAllTokens(const Tokens& tokens) -> void {
@@ -355,6 +353,55 @@ static inline auto isDigits(const std::string& str) -> bool {
         if (!isdigit(static_cast<unsigned char>(c)))
             return false;
     return true;
+}
+
+static inline auto isFloat(const std::string& s) -> bool {
+    if (s.empty()) return false;
+
+    int n = s.size();
+    int i = 0;
+
+    if (s[i] == '+' || s[i] == '-') {
+        i++;
+        if (i >= n) return false;
+    }
+
+    bool hasDigit = false;
+    bool hasDot = false;
+    bool hasExp = false;
+
+    for (; i < n; i++) {
+        char c = s[i];
+
+        if (isdigit(c)) {
+            hasDigit = true;
+            continue;
+        }
+
+        if (c == '.') {
+            if (hasDot || hasExp) return false;
+            hasDot = true;
+            continue;
+        }
+
+        if (c == 'e' || c == 'E') {
+            if (hasExp || !hasDigit) return false;
+            hasExp = true;
+
+            if (i + 1 >= n) return false;
+            char next = s[i + 1];
+            if (next == '+' || next == '-') {
+                i++;
+                if (i + 1 >= n) return false;
+            }
+            hasDigit = false;
+            continue;
+        }
+
+        return false;
+    }
+
+    return hasDigit;
 }
 
 static inline auto isIderCharExceptNumber(const char c) -> bool {
@@ -437,6 +484,7 @@ static inline auto typeToken(const std::string& str) -> Type {
     }
 
     if (isDigits(str)) return DIGITS;
+    if (isFloat (str)) return FLOAT;
     // printf("%s\n", str.c_str());
     if (isIdentifier(str)) return IDENTIFIER;
     // printf("%s\n", str.c_str());
@@ -589,7 +637,51 @@ static inline auto parser(const Tokens& tokens) -> AST* {
     return AST::turn(tokens);
 }
 
-auto kasm(AST* ast) -> std::string {
+static SizeType locate = 0;
+
+enum TypeOf {
+    I8, I16, I32, I64, FLT32, FLT64
+};
+
+enum Kind {
+    BUILTIN,
+    COMPLEX,
+    USERS
+};
+
+union As {
+    TypeOf builtins;
+};
+
+struct ValType {
+    Kind kind;
+    As as;
+
+    ValType() : kind(BUILTIN), as(TypeOf::I8) {}
+    ValType(Kind k, TypeOf t) : kind(k), as(t) {}
+
+    ValType ASMD(ValType vt, SizeType line) const { // addsubmuldiv
+        if (kind == BUILTIN && vt.kind == BUILTIN) {
+            TypeOf to = as.builtins;
+            TypeOf otherTo = vt.as.builtins;
+
+            return ValType(BUILTIN, (to < otherTo) ? otherTo : to);
+        }
+        else {
+            throw KASMError("Cannot support", line);
+        }
+    }
+    // other operatings
+};
+
+auto typeOf(const AST* ast) -> ValType {
+    if (isDigits(ast->str))
+        return {BUILTIN, {I64}};
+    if (isFloat(ast->str))
+        return {BUILTIN, {FLT64}};
+}
+
+static inline auto kasm(AST* ast) -> std::string {
     std::string res;
 
     switch (ast->type) {
@@ -603,13 +695,26 @@ auto kasm(AST* ast) -> std::string {
 
         break;
 
+    case EXPR: {
+        std::string& op = ast->str;
+
+        if (op == "+") {
+            std::string str1 = kasm(ast->asts[0]);
+            std::string str2 = kasm(ast->asts[1]);
+
+            typeOf(ast->asts[0]); // TODO
+
+            res = std::string("") + "load ";
+        }
+
+        break;
+    }
+
     default:
         throw KASMError("Unknown type: " + std::to_string(static_cast<int>(ast->type)));
     }
 
     delete ast;
-
-    std::cout << res << std::endl;
 
     return res;
 }

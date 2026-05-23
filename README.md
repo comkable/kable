@@ -1,4 +1,4 @@
-# kable
+# kable - Complexity comes after simplicity
 Kable gets its name from my own name plus the suffix "-able".
 ## note
 kable is C++20.

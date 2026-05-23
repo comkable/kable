@@ -1,13 +1,13 @@
-kable:
+kable - Complexity comes after simplicity
     Kable gets its name from my own name plus the suffix "-able".
     note:
         kable is C++20.
         kasm is C++11.
         vml is C++20.
-    How can it do:
+    How can it do
         It supports all features that other programming languages have.
         Currently, it is still under development.
-    Why I created Kable:
+    Why I created Kable
         Kable is an interpreted programming language like *Java*.
         I made it and avoid receiving legal notices from Oracle over Java-related issues.
         Kable has numerous advantages here.

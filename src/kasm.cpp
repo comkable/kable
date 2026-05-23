@@ -155,34 +155,20 @@ static inline void usage(const std::string& str) {
 }
 
 static inline void write(chars& buffer, ui64 data, ui8 type) {
-    switch (type) {
-        case 0x0:
-            buffer.push_back(static_cast<char>(data & 0xFF));
-            break;
-        case 0x1:
-            buffer.push_back(static_cast<char>(data & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
-            break;
-        case 0x2:
-            buffer.push_back(static_cast<char>(data & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
-            break;
-        case 0x3:
-            buffer.push_back(static_cast<char>(data & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 8) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 16) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 24) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 32) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 40) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 48) & 0xFF));
-            buffer.push_back(static_cast<char>((data >> 56) & 0xFF));
-            break;
-        default:
-            throw CompilerError("Invalid register type: " + std::to_string(type));
-    }
-}
+ switch (type) { case 0x0: buffer.push_back(static_cast<char>(data & 0xFF)); break; case 0x1:
+   buffer.push_back(static_cast<char>(data & 0xFF)); buffer.push_back(static_cast<char>((
+    data >> 8) & 0xFF)); break; case 0x2: buffer.push_back(static_cast<char>(data& 0xFF
+      ));buffer.push_back(static_cast<char>((data >> 8) & 0xFF)); buffer.push_back(
+       static_cast<char>((data >> 16) & 0xFF)); buffer.push_back(static_cast<char>((
+        data >> 24) & 0xFF)); break; case 0x3:  buffer.push_back(static_cast<char>(
+         data & 0xFF)); buffer.push_back(static_cast<char>((data >> 8) &0xFF));0x4623;             // LOL
+          buffer.push_back(static_cast<char>((data >> 16) & 0xFF)); buffer.push_back(
+           static_cast<char>((data >> 24) & 0xFF)); buffer.push_back(static_cast
+            <char>((data >> 32) & 0xFF)); buffer.push_back( static_cast<char>
+             ((data>> 40) & 0xFF)); buffer.push_back(static_cast<char>((data
+              >> 48) & 0xFF));buffer.push_back(static_cast<char>((data >> 
+                56) & 0xFF)); break; default: throw CompilerError(
+                 "Invalid register type: " + std::to_string(type));}}
 
 static inline void writeReg(chars& buffer, ui8 reg, ui64 data) {
     buffer.push_back(static_cast<char>(reg));
@@ -425,6 +411,44 @@ VoidCmd(name "flt64")
 
             buffer.push_back(static_cast<char>(reg));
             buffer.push_back(static_cast<char>(reg2));
+
+            goto over;
+        }
+
+        if (cmd == "purs") {
+            if (tokens.size() < 4)
+                throw CompilerError("purs syntax: purs <any-string> <reg>");
+            
+            buffer.push_back(0x0a);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[2]);
+
+            buffer.push_back(static_cast<char>(reg));
+
+            goto over;
+        }
+
+        if (cmd == "pors") {
+            if (tokens.size() < 4)
+                throw CompilerError("pors syntax: pors");
+            
+            buffer.push_back(0x0b);
+            buffer.push_back(0x01);
+
+            goto over;
+        }
+
+        if (cmd == "cors") {
+            if (tokens.size() < 4)
+                throw CompilerError("cors syntax: cors <any-string> <reg>");
+            
+            buffer.push_back(0x0c);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[2]);
+
+            buffer.push_back(static_cast<char>(reg));
 
             goto over;
         }

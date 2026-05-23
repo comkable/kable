@@ -23,6 +23,7 @@
 
 #include "define.hpp"
 
+#include <type_traits>
 #include <stdexcept>
 #include <cstring>
 #include <cstdlib>
@@ -457,6 +458,29 @@ struct gotoifus {
     }
 };
 
+struct CORS {
+    static inline void CopyReturnsStack(ARGS) {
+        Reg reg = readReg(args);
+
+        regWrite(returns.data() + returnsPtr, reg);
+    }
+};
+
+struct PORS {
+    static inline void PopReturnsStack(ARGS) {
+        if (returnsPtr)
+            returnsPtr--;
+    }
+};
+
+struct PURS {
+    static inline void PushReturnsStack(ARGS) {
+        Reg reg = readReg(args);
+
+        returns[returnsPtr] = readRegVal<ui32>(reg);
+    }
+};
+
 static inline void cannotUse(ARGS) {
     ioString("This cannot be used.\n");
     exit(EXIT_FAILURE);
@@ -534,6 +558,10 @@ do {                                             \
 
     functions[0x108] = &storeus::Storeus;
     functions[0x109] = &loadus::Loadus;
+
+    functions[0x10a] = &PURS::PushReturnsStack;
+    functions[0x10b] = &PORS::PopReturnsStack;
+    functions[0x10c] = &CORS::CopyReturnsStack;
 
     functions[FunctionSize-1] = [](ARGS) -> void { // halt
         exit(EXIT_SUCCESS);
