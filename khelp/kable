@@ -1,7 +1,7 @@
 kable:
     Kable gets its name from my own name plus the suffix "-able".
     note:
-        kable is .
+        kable is C++20.
         kasm is C++11.
         vml is C++20.
     How can it do:
