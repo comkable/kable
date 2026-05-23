@@ -415,6 +415,28 @@ struct load {
     }
 };
 
+struct storeus {
+    static void Storeus(ARGS) {
+        Reg reg = readReg(args); args += sizeofReg;
+        Reg reg2 = readReg(args);
+
+        writeMemory(readRegVal<ui32>(reg2), regReadI64(reg), reg2 / 4);
+
+        i++;
+    }
+};
+
+struct loadus {
+    static void Loadus(ARGS) {
+        Reg reg = readReg(args); args += sizeofReg;
+        Reg reg2 = readReg(args);
+
+        readMemoryToReg(readRegVal<ui32>(reg2), reg);
+
+        i++;
+    }
+};
+
 struct gotous {
     static inline void Gotous(ARGS) {
         Reg reg = readReg(args);
@@ -509,6 +531,9 @@ do {                                             \
 
     functions[0x106] = &gotous::Gotous;
     functions[0x107] = &gotoifus::Gotoifus;
+
+    functions[0x108] = &storeus::Storeus;
+    functions[0x109] = &loadus::Loadus;
 
     functions[FunctionSize-1] = [](ARGS) -> void { // halt
         exit(EXIT_SUCCESS);

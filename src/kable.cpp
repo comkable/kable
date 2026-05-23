@@ -94,10 +94,26 @@ public:
     }
 };
 
+class KASMError : public Error {
+public:
+    KASMError(std::string msg, SizeType line) {
+        this->name = "KASMError";
+        this->msg = msg;
+        throws(line);
+    }
+
+    KASMError(std::string msg) {
+        this->name = "KASMError";
+        this->msg = msg;
+        throws();
+    }
+};
+
 enum Type : uint16_t {
-    IF, ELSE, WHILE,
+    ALL,
+    IF, ELSE, WHILE, END,
+    KASM,
     DIGITS, IDENTIFIER,
-    END,
     OPERATOR,
         BIGGER, SMALLER, EQUALS, EQUAL, AND, OR, NOT,
         BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
@@ -128,73 +144,55 @@ struct Token {
 using chars = std::vector<char>;
 using Tokens = std::vector<Token>;
 
-class _AST {
-    using _ASTs = std::vector<_AST*>;
+class AST {
+    using ASTs = std::vector<AST*>;
 private:
-    _ASTs asts;
+    ASTs asts;
     std::string str;
     Type type;
 public:
-    _AST() = default;
+    AST() = default;
 
-    _AST(const _ASTs& asts, const std::string& str, Type type)
-        : asts(asts), str(str), type(type) {}
+    AST(const AST& other) 
+        : str(other.str), type(other.type) {
+        for (AST* child : other.asts)
+            asts.push_back(new AST(*child));
+    }
+
+    AST(const ASTs& asts, const std::string& str, Type type)
+        : str(str), type(type) {
+        for (const AST* ast : asts)
+            if (ast) this->asts.push_back(new AST(*ast));
+    }
+
+    ~AST() {
+        // for (AST* ast : asts) 
+            // delete ast;
+    }
 
     auto tostring(ui16 indent) const -> std::string {
         std::string indentStr;
+
         for (ui16 i = 0; i < indent; i++)
             indentStr += " ";
 
         std::string str = indentStr + "ASTS:\n";
-        for (_AST* ast : asts)
+
+        for (const AST* ast : asts)
             str += ast->tostring(indent + 2);
 
         str += indentStr + "STR: " + this->str + "\n";
-        str += indentStr + "TYPE: " + std::to_string(this->type) + "\n";
+        str += indentStr + "TYPE: " + std::to_string(this->type) + "\n\n";
         return str;
     }
 
-    void operator=(const _AST& ast) {
+    void operator=(const AST& ast) {
         this->asts = ast.asts;
         this->str = ast.str;
         this->type = ast.type;
     }
 
-    friend class AST;
-};
-
-class AST {
-    using ASTs = std::vector<AST>;
-private:
-    _AST* ast = nullptr;
-public:
-    AST() = default;
-
-    AST(const ASTs& asts, const std::string& str, Type type) {
-        ast = new _AST;
-        for (const AST& a : asts) {
-            if (a.ast) {
-                ast->asts.push_back(new _AST(*a.ast));
-            }
-        }
-        ast->str = str;
-        ast->type = type;
-    }
-
-    ~AST() {
-        if (ast) {
-            for (_AST* child : ast->asts)
-                delete child;
-            delete ast;
-        }
-    }
-
-    auto tostring(ui16 indent) const -> std::string {
-        if (ast) return ast->tostring(indent);
-        return "";
-    }
-
-    static auto turn(const Tokens& tokens) -> AST {
+    static auto turn(const Tokens& tokens) -> AST* {
         struct Functions {
 const Tokens& tokens;
 SizeType pos = 0;
@@ -231,12 +229,12 @@ auto checkType() -> bool {
     return check(IDENTIFIER);
 }
 
-auto factor() -> AST {
+auto factor() -> AST* {
     if (matchValue()) {
-        return AST({}, tokens[pos-1].str, EXPR);
+        return new AST({}, tokens[pos-1].str, EXPR);
     }
     if (match(LEFT_PAREN)) {
-        AST a = expr();
+        AST* a = expr();
         if (!match(RIGHT_PAREN))
             throw ASTError("Expected ')'", tokens[pos].line);
         return a;
@@ -244,57 +242,86 @@ auto factor() -> AST {
     throw ASTError("Expected a value as factor", tokens[pos].line);
 }
 
-auto term1() -> AST {
-    AST left = term1();
+auto term1() -> AST* {
+    AST* left = factor();
+
     while (true) {
         if (pos >= tokens.size()) break;
         const std::string& op = tokens[pos].str;
         if (op != "*" && op != "/") break;
         pos++;
-        AST right = factor();
-        return AST({left, right}, op, EXPR);
+
+        AST* right = factor();
+
+        left = new AST({left, right}, op, EXPR);
     }
+
     return left;
 }
 
-auto expr() -> AST {
-    AST left = term1();
+auto expr() -> AST* {
+    AST* left = term1();
+
     while (true) {
         if (pos >= tokens.size()) break;
         const std::string& op = tokens[pos].str;
         if (op != "+" && op != "-") break;
         pos++;
-        AST right = term1();
-        return AST({left, right}, op, EXPR);
+
+        AST* right = term1();
+
+        left = new AST({left, right}, op, EXPR);
     }
+
     return left;
 }
 
-auto type() -> AST {
+auto type() -> AST* {
     if (match(IDENTIFIER)) {
-        return AST({}, tokens[pos-1].str, TYPES);
+        return new AST({}, tokens[pos-1].str, TYPES);
     }
+
     throw ASTError("Expected a type", tokens[pos].line);
 }
 
-auto stmt() -> AST {
-    if (checkType()) {
-        AST t = type();
-        if (match(IDENTIFIER)) {
-            return AST({t}, tokens[pos-1].str, TYPES);
+auto stmt() -> AST* {
+    if (match(KASM)) {
+        if (!match(LEFT_PAREN))
+            throw ASTError("Excepted a ( after kasm", tokens[pos].line);
+        
+        std::string str;
+
+        while (!match(RIGHT_PAREN)) {
+            if (!match(STRING))
+                throw ASTError("Excepted a string in kasm", tokens[pos].line);
+            str += tokens[pos - 1].str + "\n";
         }
+
+        if (!RIGHT_PAREN)
+            throw ASTError("Excepted a ) after all kasm", tokens[pos].line);
+
+        return new AST({}, str, KASM);
     }
-    return AST({}, "", UNKNOWN);
+    else
+        throw ASTError("Excepted a stmt", tokens[pos].line);
 }
 
-auto main() -> AST {
-    return AST({}, "", UNKNOWN);
-}
+auto main() -> AST* {
+    ASTs main;
+
+    while (pos < tokens.size())
+        main.push_back(stmt());
+
+    return new AST(main, "", ALL);
+};
 };
 
         Functions f(tokens);
-        return f.main();
+        AST* ast = f.main();
+        return ast;
     }
+    
+    friend std::string kasm(AST* ast);
 };
 
 static inline auto printAllTokens(const Tokens& tokens) -> void {
@@ -315,8 +342,8 @@ static inline auto readAll(const std::string& filename) -> std::string {
                        std::istreambuf_iterator<char>());
 }
 
-static inline auto saveAll(const std::string& filepath, const chars& content) -> void {
-    std::ofstream ofs(filepath, std::ios::binary);
+static inline auto saveAll(const std::string& filepath, const std::string& content) -> void {
+    std::ofstream ofs(filepath);
     if (!ofs)
         throw FileError("Failed to open file: " + filepath);
     ofs.write(content.data(), content.size());
@@ -380,6 +407,7 @@ static inline auto typeToken(const std::string& str) -> Type {
         if (newString == "INCLUDE") return INCLUDE;
         if (newString == "WHILE") return WHILE;
         if (newString == "FUNCTION") return FUNCTION;
+        if (newString == "KASM") return KASM;
 
         if (newString == "(") return LEFT_PAREN;
         if (newString == ")") return RIGHT_PAREN;
@@ -557,8 +585,33 @@ static inline auto lexer(const std::string& str) -> Tokens {
     return tokens;
 }
 
-static inline auto parser(const Tokens& tokens) -> AST {
+static inline auto parser(const Tokens& tokens) -> AST* {
     return AST::turn(tokens);
+}
+
+auto kasm(AST* ast) -> std::string {
+    std::string res;
+
+    switch (ast->type) {
+    case KASM:
+        res = "; KASM inline\n" + ast->str;
+
+        break;
+    case ALL:
+        for (AST* child : ast->asts)
+            res += kasm(child) + "\n";
+
+        break;
+
+    default:
+        throw KASMError("Unknown type: " + std::to_string(static_cast<int>(ast->type)));
+    }
+
+    delete ast;
+
+    std::cout << res << std::endl;
+
+    return res;
 }
 
 static inline auto usage(const std::string& str) -> void {
@@ -566,10 +619,12 @@ static inline auto usage(const std::string& str) -> void {
     exit(EXIT_FAILURE);
 }
 
-static inline auto compiler(const std::string& str) -> chars {
-    chars cs;
-    // TODO
-    return cs;
+static inline auto compiler(const std::string& str) -> std::string {
+    AST* ast = parser(lexer(str));
+
+    std::cout << ast->tostring(0) << std::endl;
+
+    return kasm(ast);
 }
 
 auto main(int argc, char** _argv) -> int {
@@ -600,7 +655,7 @@ auto main(int argc, char** _argv) -> int {
         usage(argv[0]);
 
     std::string str = readAll(inputFile);
-    chars string = compiler(str);
+    std::string string = compiler(str);
     saveAll(outputFile, string);
 
     return 0;

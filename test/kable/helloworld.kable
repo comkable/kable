@@ -1,0 +1,38 @@
+
+kasm(
+    "mov reg0 from 72"
+    "putchar from reg0"
+
+    "mov reg0 from 101"
+    "putchar from reg0"
+
+    "mov reg0 from 108"
+    "putchar from reg0"
+
+    "mov reg0 from 108"
+    "putchar from reg0"
+
+    "mov reg0 from 111"
+    "putchar from reg0"
+
+    "mov reg0 from 44"
+    "putchar from reg0"
+
+    "mov reg0 from 32"
+    "putchar from reg0"
+
+    "mov reg0 from 119"
+    "putchar from reg0"
+
+    "mov reg0 from 111"
+    "putchar from reg0"
+
+    "mov reg0 from 114"
+    "putchar from reg0"
+
+    "mov reg0 from 108"
+    "putchar from reg0"
+
+    "mov reg0 from 100"
+    "putchar from reg0"
+)

@@ -353,7 +353,7 @@ VoidCmd(name "flt64")
         
         if (cmd == "load") {
             if (tokens.size() < 4)
-                throw CompilerError("load syntax: str <reg> <any-string> <location>");
+                throw CompilerError("load syntax: load <reg> <any-string> <location>");
             
             buffer.push_back(0x05);
             buffer.push_back(0x01);
@@ -390,6 +390,38 @@ VoidCmd(name "flt64")
 
             ui8 reg = storeg(tokens[2]);
             ui8 reg2 = storeg(tokens[4]);
+
+            buffer.push_back(static_cast<char>(reg));
+            buffer.push_back(static_cast<char>(reg2));
+
+            goto over;
+        }
+
+        if (cmd == "strus") {
+            if (tokens.size() < 4)
+                throw CompilerError("strus syntax: strus <reg> <any-string> <location>");
+
+            buffer.push_back(0x08);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[1]);
+            ui8 reg2 = storeg(tokens[3]);;
+
+            buffer.push_back(static_cast<char>(reg));
+            buffer.push_back(static_cast<char>(reg2));
+
+            goto over;
+        }
+        
+        if (cmd == "loadus") {
+            if (tokens.size() < 4)
+                throw CompilerError("loadus syntax: loadus <reg> <any-string> <location>");
+            
+            buffer.push_back(0x09);
+            buffer.push_back(0x01);
+
+            ui8 reg = storeg(tokens[1]);
+            ui8 reg2 = storeg(tokens[3]);;
 
             buffer.push_back(static_cast<char>(reg));
             buffer.push_back(static_cast<char>(reg2));
