@@ -219,6 +219,19 @@ if (cmd == name) {                              \
     goto over;                                  \
 }
 
+#define MakeUnaryCmd(name, code)                     \
+if (cmd == name) {                              \
+    if (tokens.size() < 4)                      \
+        throw CompilerError(name " syntax: " name " <reg> <any-string> <reg>"); \
+    buffer.push_back(code);                     \
+    buffer.push_back(0x00);                     \
+    ui8 r1 = storeg(tokens[1]);                 \
+    ui8 r2 = storeg(tokens[3]);                 \
+    buffer.push_back(static_cast<char>(r1));    \
+    buffer.push_back(static_cast<char>(r2));    \
+    goto over;                                  \
+}
+
 #define MakeTT(type1, type2, code)              \
 if (cmd == "tt" type1 type2) {                  \
     if (tokens.size() < 4)                      \
@@ -256,6 +269,22 @@ MakeCmd(name "ui64", code + 3)    \
 MakeCmd(name "flt32", code + 4)   \
 MakeCmd(name "flt64", code + 5)
 
+#define CreateUnaryCmd(name, code)     \
+MakeUnaryCmd(name "ui8", code + 0)     \
+MakeUnaryCmd(name "ui16", code + 1)    \
+MakeUnaryCmd(name "ui32", code + 2)    \
+MakeUnaryCmd(name "ui64", code + 3)    \
+MakeUnaryCmd(name "flt32", code + 4)   \
+MakeUnaryCmd(name "flt64", code + 5)
+
+#define CreateUnaryBitsCmd(name, code) \
+MakeUnaryCmd(name "ui8", code + 0)     \
+MakeUnaryCmd(name "ui16", code + 1)    \
+MakeUnaryCmd(name "ui32", code + 2)    \
+MakeUnaryCmd(name "ui64", code + 3)    \
+VoidCmd(name "flt32")                  \
+VoidCmd(name "flt64")
+
 #define CreateBitsCmd(name, code)  \
 MakeCmd(name "ui8", code + 0)      \
 MakeCmd(name "ui16", code + 1)     \
@@ -286,11 +315,11 @@ VoidCmd(name "flt64")
         CreateCmd("equal", 0x24)
         CreateBitsCmd("and", 0x2a)
         CreateBitsCmd("or", 0x30)
-        CreateBitsCmd("not", 0x36)
+        CreateUnaryBitsCmd("not", 0x36)
         CreateBitsCmd("xor", 0x3c)
-        CreateBitsCmd("logicaland", 0x42)
+        CreateBitsCmd("logicand", 0x42)
         CreateBitsCmd("logicor", 0x48)
-        CreateBitsCmd("logicnot", 0x4e)
+        CreateUnaryCmd("logicnot", 0x4e)
 
         CreateTT("ui8", 0x54)
         CreateTT("ui16", 0x5a)

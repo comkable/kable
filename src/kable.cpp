@@ -1,4 +1,3 @@
-
 // Copyright (c) 2026 comkable
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -14,9 +13,7 @@
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-// OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+// AUTHORS OR COPYRIGHT HOLDERS IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 // SOFTWARE.
 
 #include "define.hpp"
@@ -26,6 +23,7 @@
 #include <cstdlib>
 #include <stdexcept>
 #include <unordered_map>
+#include <stack>
 #include <iostream>
 #include <fstream>
 #include <tuple>
@@ -34,8 +32,7 @@
 #include <cstdint>
 #include <algorithm>
 #include <array>
-
-using ui16 = uint16_t;
+#include <cctype>
 
 class Error {
 protected:
@@ -55,14 +52,13 @@ public:
     }
 
     auto what(SizeType line) const -> std::string {
-        std::string temp = std::string("Throwed ") + "in line " + std::to_string(line) + "\n" +
-            "ERROR " + this->name + " : \033[31m" + this->msg + "\033[0m";
+        std::string temp = std::string("Throwed in line ") + std::to_string(line) + "\n"
+            + "ERROR " + this->name + " : \033[31m" + this->msg + "\033[0m";
         return temp;
     }
 
     auto what() const -> std::string {
-        std::string temp = "Throwed" + std::string("\n") +
-            "ERROR " + this->name + " : \033[31m" + this->msg + "\033[0m";
+        std::string temp = "Throwed\nERROR " + this->name + " : \033[31m" + this->msg + "\033[0m";
         return temp;
     }
 };
@@ -78,9 +74,10 @@ public:
 
 class TokenError : public Error {
 public:
-    TokenError(std::string msg) {
+    TokenError(std::string msg, SizeType line) {
         this->name = "TokenError";
         this->msg = msg;
+        throws(line);
     }
 };
 
@@ -100,7 +97,6 @@ public:
         this->msg = msg;
         throws(line);
     }
-
     KASMError(std::string msg) {
         this->name = "KASMError";
         this->msg = msg;
@@ -110,20 +106,17 @@ public:
 
 enum Type : uint16_t {
     ALL,
-    IF, ELSE, WHILE, END,
-    KASM,
+    IF, ELIF, ELSE, WHILE, END,
+    KASM, INCLUDE, RETURN, AT,
     OPERATOR,
-        BIGGER, SMALLER, EQUALS, EQUAL, AND, OR, NOT,
-        BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
-        EACH_AND, EACH_OR, EACH_NOT, EACH_XOR,
-        ADD, SUB, MUL, DIV, MOD,
-    FUNCTION,
-        LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
-    SEMICOLON,
-        COMMA, PARAMS, STMTS, TYPES, NAMES, BODY,
-    AT, RETURN,
-    INCLUDE,
-        STRING, CHAR, FLOAT, EXPR, DIGITS, IDENTIFIER,
+    BIGGER, SMALLER, EQUALS, EQUAL,
+    BIGGER_EQUAL, SMALLER_EQUAL, NOT_EQUAL,
+    AND, OR, NOT, EACH_AND, EACH_OR, EACH_NOT, EACH_XOR,
+    ADD, SUB, MUL, DIV, MOD,
+    LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE,
+    SEMICOLON, COMMA,
+    STRING, CHAR, FLOAT, DIGITS, IDENTIFIER,
+    PARAMS, STMTS, TYPES, NAMES, BODY, EXPR,
     UNKNOWN
 };
 
@@ -139,497 +132,386 @@ struct Token {
     SizeType line;
 };
 
-using chars = std::vector<char>;
 using Tokens = std::vector<Token>;
 
 class AST {
-    using ASTs = std::vector<AST*>;
-
 public:
+    using ASTs = std::vector<AST*>;
     ASTs asts;
     std::string str;
     SizeType line;
     Type type;
 
     AST() = default;
-
-    AST(const AST& other) 
-        : str(other.str), type(other.type) {
-        for (AST* child : other.asts)
-            asts.push_back(new AST(*child));
-    }
-
     AST(const ASTs& asts, const std::string& str, SizeType line, Type type)
         : str(str), line(line), type(type) {
         for (const AST* ast : asts)
             if (ast) this->asts.push_back(new AST(*ast));
     }
 
+    AST(const AST& other) : str(other.str), type(other.type), line(other.line) {
+        for (AST* child : other.asts)
+            asts.push_back(new AST(*child));
+    }
+
     ~AST() {
-        // for (AST* ast : asts) 
-            // delete ast;
+        for (AST* child : asts)
+            delete child;
+        asts.clear();
     }
 
-    auto tostring(ui16 indent) const -> std::string {
-        std::string indentStr;
-
-        for (ui16 i = 0; i < indent; i++)
-            indentStr += " ";
-
-        std::string str = indentStr + "ASTS:\n";
-
-        for (const AST* ast : asts)
-            str += ast->tostring(indent + 2);
-
-        str += indentStr + "STR: " + this->str + "\n";
-        str += indentStr + "TYPE: " + std::to_string(this->type) + "\n\n";
-        return str;
+    AST& operator=(const AST& ast) {
+        if (this == &ast) return *this;
+        for (AST* child : asts) delete child;
+        asts.clear();
+        str = ast.str;
+        type = ast.type;
+        line = ast.line;
+        for (AST* child : ast.asts)
+            asts.push_back(new AST(*child));
+        return *this;
     }
 
-    void operator=(const AST& ast) {
-        this->asts = ast.asts;
-        this->str = ast.str;
-        this->type = ast.type;
+    auto tostring(ui16 indent = 0) const -> std::string {
+        std::string indentStr(indent, ' ');
+        std::string res = indentStr + "TYPE: " + std::to_string(type) + " STR: " + str + "\n";
+        for (AST* child : asts)
+            res += child->tostring(indent + 2);
+        return res;
     }
 
     static auto turn(const Tokens& tokens) -> AST* {
         struct Functions {
-const Tokens& tokens;
-SizeType pos = 0;
+            const Tokens& tokens;
+            SizeType pos = 0;
 
-Functions(const Tokens& tokens) : tokens(tokens), pos(0) {}
+            Functions(const Tokens& tokens) : tokens(tokens), pos(0) {}
 
-auto match(Type type) -> bool {
-    if (pos >= tokens.size()) return false;
-    if (tokens[pos].head.type == type) {
-        pos++;
-        return true;
-    }
-    return false;
-}
+            void match(Type type, const std::string& err = "syntax error") {
+                if (pos >= tokens.size() || tokens[pos].head.type != type)
+                    throw ASTError(err, pos < tokens.size() ? tokens[pos].line : 0);
+                pos++;
+            }
 
-auto check(Type type) -> bool {
-    if (pos >= tokens.size()) return false;
-    return tokens[pos].head.type == type;
-}
+            bool check(Type type) {
+                return pos < tokens.size() && tokens[pos].head.type == type;
+            }
 
-auto matchValue() -> bool {
-    return match(DIGITS) || match(STRING) || match(CHAR) || match(FLOAT) || match(OPERATOR);
-}
+            AST* factor() {
+                if (pos >= tokens.size()) throw ASTError("unexpected end", 0);
+                if (check(DIGITS)) {
+                    auto& t = tokens[pos++];
+                    return new AST({}, t.str, t.line, DIGITS);
+                }
+                if (check(FLOAT)) {
+                    auto& t = tokens[pos++];
+                    return new AST({}, t.str, t.line, FLOAT);
+                }
+                if (check(IDENTIFIER)) {
+                    auto& t = tokens[pos++];
+                    return new AST({}, t.str, t.line, IDENTIFIER);
+                }
+                if (check(STRING)) {
+                    auto& t = tokens[pos++];
+                    return new AST({}, t.str, t.line, STRING);
+                }
+                if (check(LEFT_PAREN)) {
+                    match(LEFT_PAREN);
+                    AST* a = expr();
+                    match(RIGHT_PAREN, "missing )");
+                    return a;
+                }
+                throw ASTError("invalid factor", tokens[pos].line);
+            }
 
-auto checkValue() -> bool {
-    return check(DIGITS) || check(STRING) || check(CHAR) || check(FLOAT) || check(OPERATOR);
-}
+            AST* term2() {
+                AST* left = factor();
+                while (pos < tokens.size()) {
+                    std::string op;
+                    if (check(BIGGER_EQUAL)) { op = ">="; pos++; }
+                    else if (check(SMALLER_EQUAL)) { op = "<="; pos++; }
+                    else if (check(NOT_EQUAL)) { op = "!="; pos++; }
+                    else if (check(BIGGER)) { op = ">"; pos++; }
+                    else if (check(SMALLER)) { op = "<"; pos++; }
+                    else if (check(EQUALS)) { op = "=="; pos++; }
+                    else break;
+                    AST* right = factor();
+                    left = new AST({left, right}, op, tokens[pos-1].line, EXPR);
+                }
+                return left;
+            }
 
-auto matchType() -> bool {
-    return match(IDENTIFIER);
-}
+            AST* term1() {
+                AST* left = term2();
+                while (pos < tokens.size()) {
+                    if (check(MUL)) {
+                        auto& t = tokens[pos++];
+                        AST* right = term2();
+                        left = new AST({left, right}, "*", t.line, EXPR);
+                    } else if (check(DIV)) {
+                        auto& t = tokens[pos++];
+                        AST* right = term2();
+                        left = new AST({left, right}, "/", t.line, EXPR);
+                    } else break;
+                }
+                return left;
+            }
 
-auto checkType() -> bool {
-    return check(IDENTIFIER);
-}
+            AST* expr() {
+                AST* left = term1();
+                while (pos < tokens.size()) {
+                    if (check(ADD)) {
+                        auto& t = tokens[pos++];
+                        AST* right = term1();
+                        left = new AST({left, right}, "+", t.line, EXPR);
+                    } else if (check(SUB)) {
+                        auto& t = tokens[pos++];
+                        AST* right = term1();
+                        left = new AST({left, right}, "-", t.line, EXPR);
+                    } else break;
+                }
+                return left;
+            }
 
-auto factor() -> AST* {
-    if (matchValue())
-        return new AST({}, tokens[pos-1].str, tokens[pos-1].line, EXPR);
+            AST* type() {
+                if (check(IDENTIFIER)) {
+                    auto& t = tokens[pos++];
+                    return new AST({}, t.str, t.line, TYPES);
+                }
+                return new AST({}, "I64", 0, TYPES);
+            }
 
-    if (match(LEFT_PAREN)) {
-        AST* a = expr();
-        if (!match(RIGHT_PAREN))
-            throw ASTError("Expected ')'", tokens[pos].line);
-        return a;
-    }
-    throw ASTError("Expected a value as factor", tokens[pos].line);
-}
+            AST* stmt() {
+                if (check(IF)) {
+                    match(IF);
+                    match(LEFT_PAREN);
+                    AST* cond = expr();
+                    match(RIGHT_PAREN);
+                    match(LEFT_BRACE);
+                    AST* body = main();
+                    match(RIGHT_BRACE);
 
-auto term1() -> AST* {
-    AST* left = factor();
+                    ASTs elifs;
+                    while (check(ELIF)) {
+                        match(ELIF);
+                        match(LEFT_PAREN);
+                        AST* e_cond = expr();
+                        match(RIGHT_PAREN);
+                        match(LEFT_BRACE);
+                        AST* e_body = main();
+                        match(RIGHT_BRACE);
+                        elifs.push_back(new AST({e_cond, e_body}, "", 0, ELIF));
+                    }
 
-    while (true) {
-        if (pos >= tokens.size()) break;
-        const std::string& op = tokens[pos].str;
-        if (op != "*" && op != "/") break;
-        pos++;
+                    AST* else_ast = nullptr;
+                    if (check(ELSE)) {
+                        match(ELSE);
+                        match(LEFT_BRACE);
+                        else_ast = main();
+                        match(RIGHT_BRACE);
+                    }
 
-        AST* right = factor();
+                    ASTs kids = {cond, body};
+                    for (auto* e : elifs) kids.push_back(e);
+                    if (else_ast) kids.push_back(else_ast);
+                    return new AST(kids, "", 0, IF);
+                }
 
-        left = new AST({left, right}, op, tokens[pos - 1].line, EXPR);
-    }
+                if (check(WHILE)) {
+                    match(WHILE);
+                    match(LEFT_PAREN);
+                    AST* cond = expr();
+                    match(RIGHT_PAREN);
+                    match(LEFT_BRACE);
+                    AST* body = main();
+                    match(RIGHT_BRACE);
+                    return new AST({cond, body}, "", 0, WHILE);
+                }
 
-    return left;
-}
+                if (check(KASM)) {
+                    match(KASM);
+                    match(LEFT_PAREN);
+                    std::string s;
+                    while (check(STRING)) {
+                        s += tokens[pos++].str + "\n";
+                    }
+                    match(RIGHT_PAREN);
+                    return new AST({}, s, 0, KASM);
+                }
 
-auto expr() -> AST* {
-    AST* left = term1();
+                if (check(IDENTIFIER)) {
+                    std::string name = tokens[pos].str;
+                    SizeType line = tokens[pos].line;
+                    pos++;
 
-    while (true) {
-        if (pos >= tokens.size()) break;
-        const std::string& op = tokens[pos].str;
-        if (op != "+" && op != "-") break;
-        pos++;
+                    if (check(AT)) {
+                        match(AT);
+                        AST* ty = type();
+                        match(EQUAL);
+                        AST* e = expr();
+                        match(SEMICOLON);
+                        return new AST({ty, e}, name, line, EQUAL);
+                    } else {
+                        if (check(EQUAL)) {
+                            match(EQUAL);
+                            AST* e = expr();
+                            match(SEMICOLON);
+                            return new AST({e}, name, line, EQUAL);
+                        }
+                        pos--;
+                    }
+                }
 
-        AST* right = term1();
+                AST* e = expr();
+                match(SEMICOLON);
+                return e;
+            }
 
-        left = new AST({left, right}, op, tokens[pos - 1].line, EXPR);
-    }
-
-    return left;
-}
-
-auto type() -> AST* {
-    if (match(IDENTIFIER)) {
-        return new AST({}, tokens[pos - 1].str, tokens[pos - 1].line, TYPES);
-    }
-
-    throw ASTError("Expected a type", tokens[pos].line);
-}
-
-auto stmt() -> AST* {
-    if (match(KASM)) {
-        if (!match(LEFT_PAREN))
-            throw ASTError("Excepted a ( after kasm", tokens[pos].line);
-        
-        std::string str;
-
-        while (!match(RIGHT_PAREN)) {
-            if (!match(STRING))
-                throw ASTError("Excepted a string in kasm", tokens[pos].line);
-            str += tokens[pos - 1].str + "\n";
-        }
-
-        if (!RIGHT_PAREN)
-            throw ASTError("Excepted a ) after all kasm", tokens[pos].line);
-
-        return new AST({}, str, tokens[pos - 1].line, KASM);
-    }
-    else
-        throw ASTError("Excepted a stmt", tokens[pos].line);
-}
-
-auto main() -> AST* {
-    ASTs main;
-
-    while (pos < tokens.size())
-        main.push_back(stmt());
-
-    return new AST(main, "", tokens[pos - 1].line, ALL);
-};
-};
+            AST* main() {
+                ASTs stmts;
+                while (pos < tokens.size() && !check(RIGHT_BRACE))
+                    stmts.push_back(stmt());
+                return new AST(stmts, "", 0, ALL);
+            }
+        };
 
         Functions f(tokens);
-        AST* ast = f.main();
-        return ast;
+        try {
+            return f.main();
+        } catch (...) {
+            throw;
+        }
     }
 };
 
-static inline auto printAllTokens(const Tokens& tokens) -> void {
-    for (const Token& token : tokens) {
-        std::cout << "Type: " << token.head.type << "\n";
-        std::cout << "Str : " << token.str << "\n\n";
-    }
-    std::cout << std::flush;
-}
-
 static inline auto readAll(const std::string& filename) -> std::string {
-    std::ifstream ifs(filename);
-    if (!ifs) {
-        std::cerr << "Failed to open file: " << filename << std::endl;
-        exit(EXIT_FAILURE);
-    }
-    return std::string(std::istreambuf_iterator<char>(ifs),
-                       std::istreambuf_iterator<char>());
+    std::ifstream ifs(filename, std::ios::binary);
+    if (!ifs) throw FileError("Cannot open: " + filename);
+    return std::string(std::istreambuf_iterator<char>(ifs), {});
 }
 
 static inline auto saveAll(const std::string& filepath, const std::string& content) -> void {
-    std::ofstream ofs(filepath);
-    if (!ofs)
-        throw FileError("Failed to open file: " + filepath);
-    ofs.write(content.data(), content.size());
+    std::ofstream ofs(filepath, std::ios::binary);
+    if (!ofs) throw FileError("Cannot save: " + filepath);
+    ofs << content;
 }
 
-static inline auto isDigits(const std::string& str) -> bool {
+static inline bool isDigits(const std::string& str) {
     if (str.empty()) return false;
-    for (char c : str)
-        if (!isdigit(static_cast<unsigned char>(c)))
-            return false;
+    for (char c : str) if (!isdigit(c)) return false;
     return true;
 }
 
-static inline auto isFloat(const std::string& s) -> bool {
-    if (s.empty()) return false;
-
-    int n = s.size();
-    int i = 0;
-
-    if (s[i] == '+' || s[i] == '-') {
-        i++;
-        if (i >= n) return false;
-    }
-
-    bool hasDigit = false;
-    bool hasDot = false;
-    bool hasExp = false;
-
-    for (; i < n; i++) {
-        char c = s[i];
-
-        if (isdigit(c)) {
-            hasDigit = true;
-            continue;
-        }
-
-        if (c == '.') {
-            if (hasDot || hasExp) return false;
-            hasDot = true;
-            continue;
-        }
-
-        if (c == 'e' || c == 'E') {
-            if (hasExp || !hasDigit) return false;
-            hasExp = true;
-
-            if (i + 1 >= n) return false;
-            char next = s[i + 1];
-            if (next == '+' || next == '-') {
-                i++;
-                if (i + 1 >= n) return false;
-            }
-            hasDigit = false;
-            continue;
-        }
-
-        return false;
-    }
-
-    return hasDigit;
+static inline bool isFloat(const std::string& s) {
+    return s.find('.') != std::string::npos;
 }
 
-static inline auto isIderCharExceptNumber(const char c) -> bool {
-    return ('A' <= c && c <= 'Z') || ('a' <= c && c <= 'z') ||
-            c == '_';
+static inline std::string upper(std::string s) {
+    std::transform(s.begin(), s.end(), s.begin(), ::toupper);
+    return s;
 }
 
-static inline auto isIderChar(const char c) -> bool {
-    return isIderCharExceptNumber(c) || isdigit(static_cast<unsigned char>(c));
-}
-
-static inline auto isIdentifier(const std::string& str) -> bool {
-    if (str.empty()) return false;
-    if (!isIderCharExceptNumber(str[0]))
-        return false;
-    for (size_t i = 1; i < str.size(); ++i)
-        if (!isIderChar(str[i]))
-            return false;
-    return true;
-}
-
-static inline auto isWhite(const char c) -> bool {
-    return isspace(static_cast<unsigned char>(c));
-}
-
-static inline auto isWhites(const std::string& str) -> bool {
-    for (char c : str)
-        if (!isWhite(c))
-            return false;
-    return true;
-}
-
-static inline auto upper(std::string& str) -> void {
-    std::transform(str.begin(), str.end(), str.begin(), toupper);
-}
-
-static inline auto typeToken(const std::string& str) -> Type {
-    // printf("%s\n", str.c_str());
-
-    if (str.size() < 9) { // a small optimization for most tokens
-        std::string newString = str;
-        upper(newString);
-        if (newString == "IF") return IF;
-        if (newString == "ELSE") return ELSE;
-        if (newString == "END") return END;
-        if (newString == "BIGGER") return BIGGER;
-        if (newString == "SMALLER") return SMALLER;
-        if (newString == "EQUAL") return EQUAL;
-        if (newString == "RETURN") return RETURN;
-        if (newString == "INCLUDE") return INCLUDE;
-        if (newString == "WHILE") return WHILE;
-        if (newString == "FUNCTION") return FUNCTION;
-        if (newString == "KASM") return KASM;
-
-        if (newString == "(") return LEFT_PAREN;
-        if (newString == ")") return RIGHT_PAREN;
-        if (newString == "{") return LEFT_BRACE;
-        if (newString == "}") return RIGHT_BRACE;
-        if (newString == ";") return SEMICOLON;
-        if (newString == ",") return COMMA;
-
-        if (newString == "+")  return OPERATOR;
-        if (newString == "-")  return OPERATOR;
-        if (newString == "*")  return OPERATOR;
-        if (newString == "/")  return OPERATOR;
-        if (newString == "%")  return OPERATOR;
-        if (newString == "@")  return OPERATOR;
-        if (newString == "==") return OPERATOR;
-        if (newString == "&&") return OPERATOR;
-        if (newString == "||") return OPERATOR;
-        if (newString == "!")  return OPERATOR;
-        if (newString == "=")  return OPERATOR;
-        if (newString == "!=") return OPERATOR;
-        if (newString == ">=") return OPERATOR;
-        if (newString == "<=") return OPERATOR;
-        if (newString == "|")  return OPERATOR;
-        if (newString == "~")  return OPERATOR;
-        if (newString == "&")  return OPERATOR;
-        if (newString == "^")  return OPERATOR;
-    }
-
-    if (isDigits(str)) return DIGITS;
-    if (isFloat (str)) return FLOAT;
-    // printf("%s\n", str.c_str());
-    if (isIdentifier(str)) return IDENTIFIER;
-    // printf("%s\n", str.c_str());
-
-    return UNKNOWN;
-}
+static const std::unordered_map<std::string, Type> keywords = {
+    {"if", IF}, {"elif", ELIF}, {"else", ELSE}, {"while", WHILE},
+    {"kasm", KASM}, {"return", RETURN}, {"include", INCLUDE}
+};
 
 static inline auto lexer(const std::string& str) -> Tokens {
     Tokens tokens;
-#define NEED_LINE
-#ifdef NEED_LINE
     SizeType line = 1;
-#endif
     std::string buffer;
-    buffer.reserve(64);
-    tokens.reserve(str.size() / 10 + 10);
-
-    auto it = str.cbegin();
-    const auto end = str.cend();
-
+    auto it = str.begin(), end = str.end();
     bool isString = false;
-    bool isChar = false;
 
-    for (; it != end; ++it) {
+    while (it != end) {
         char c = *it;
-
-        if (c == '\n') {
-#ifdef NEED_LINE
-            ++line;
-#endif
-            if (isString || isChar)
-                throw TokenError("unclosed string/char");
-
+        if (c == '\n') { line++; it++; continue; }
+        if (isspace(c) && !isString) {
             if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
-                buffer.clear();
-            }
-            continue;
-        }
-
-        if (isString) {
-            if (c == '"') {
-                tokens.emplace_back(Token{STRING, std::move(buffer), line});
-                buffer.clear();
-                isString = false;
-                continue;
-            }
-            if (c == '\\') {
-                if (std::next(it) == end)
-                    throw TokenError("escape at end");
-                char next_c = *std::next(it);
-                if (next_c == '"') {
-                    buffer += '"';
-                    ++it;
-                    continue;
+                if (keywords.count(buffer)) {
+                    tokens.push_back({keywords.at(buffer), buffer, line});
+                } else {
+                    Type t = isDigits(buffer) ? DIGITS : (isFloat(buffer) ? FLOAT : IDENTIFIER);
+                    tokens.push_back({t, buffer, line});
                 }
-            }
-            buffer += c;
-            continue;
-        }
-
-        if (isChar) {
-            if (c == '\'') {
-                tokens.emplace_back(Token{CHAR, std::move(buffer), line});
-                buffer.clear();
-                isChar = false;
-                continue;
-            }
-            if (c == '\\') {
-                if (std::next(it) == end)
-                    throw TokenError("escape at end");
-                ++it;
-            }
-            buffer += c;
-            continue;
-        }
-
-        if (isWhite(c)) {
-            if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
                 buffer.clear();
             }
-            continue;
+            it++; continue;
         }
 
+        if (c == '/' && it+1 != end && *(it+1) == '/') {
+            while (it != end && *it != '\n') it++;
+            continue;
+        }
         if (c == '"') {
-            isString = true;
-            continue;
-        }
-        if (c == '\'') {
-            isChar = true;
-            continue;
-        }
-
-        if (std::next(it) != end) {
-            char nc = *std::next(it);
-            bool match = false;
-            std::string op;
-
-            switch (c) {
-                case '=': if (nc == '=') { op = "=="; match = true; } break;
-                case '!': if (nc == '=') { op = "!="; match = true; } break;
-                case '&': if (nc == '&') { op = "&&"; match = true; } break;
-                case '|': if (nc == '|') { op = "||"; match = true; } break;
-                case '+': case '-': case '*': case '/': case '%':
-                    if (nc == '=') { op = std::string(1, c) + '='; match = true; } break;
-                default: break;
-            }
-
-            if (match) {
-                if (!buffer.empty()) {
-                    tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
-                    buffer.clear();
-                }
-                tokens.emplace_back(Token{typeToken(op), std::move(op), line});
-                ++it;
-                continue;
-            }
-        }
-
-        if (c == '/' && std::next(it) != end && *std::next(it) == '/') {
-            while (it != end && *it != '\n') ++it;
-            if (it != end) --it;
-            continue;
-        }
-
-        static const char* singleOps = "(){};,+-*/@=%&|!\"'";
-        if (std::strchr(singleOps, c)) {
-            if (!buffer.empty()) {
-                tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
+            isString = !isString;
+            if (!isString) {
+                tokens.push_back({STRING, buffer, line});
                 buffer.clear();
             }
-            tokens.emplace_back(Token{typeToken(std::string(1, c)), std::string(1, c), line});
+            it++; continue;
+        }
+        if (isString) { buffer += c; it++; continue; }
+
+        if ((c == '>' && it+1 != end && *(it+1) == '=') ||
+            (c == '<' && it+1 != end && *(it+1) == '=') ||
+            (c == '!' && it+1 != end && *(it+1) == '=') ||
+            (c == '=' && it+1 != end && *(it+1) == '=')) {
+            if (!buffer.empty()) {
+                Type t = isDigits(buffer) ? DIGITS : (isFloat(buffer) ? FLOAT : IDENTIFIER);
+                tokens.push_back({t, buffer, line});
+                buffer.clear();
+            }
+            std::string op;
+            op += c; op += *(it+1);
+            Type ty;
+            if (op == ">=") ty = BIGGER_EQUAL;
+            else if (op == "<=") ty = SMALLER_EQUAL;
+            else if (op == "!=") ty = NOT_EQUAL;
+            else ty = EQUALS;
+            tokens.push_back({ty, op, line});
+            it += 2;
             continue;
         }
 
-        buffer += c;
+        if (strchr("(){};,@+-*/%=<>!", c)) {
+            if (!buffer.empty()) {
+                Type t = isDigits(buffer) ? DIGITS : (isFloat(buffer) ? FLOAT : IDENTIFIER);
+                tokens.push_back({t, buffer, line});
+                buffer.clear();
+            }
+            Type t = UNKNOWN;
+            switch(c) {
+                case '(': t = LEFT_PAREN; break;
+                case ')': t = RIGHT_PAREN; break;
+                case '{': t = LEFT_BRACE; break;
+                case '}': t = RIGHT_BRACE; break;
+                case ';': t = SEMICOLON; break;
+                case '@': t = AT; break;
+                case '+': t = ADD; break;
+                case '-': t = SUB; break;
+                case '*': t = MUL; break;
+                case '/': t = DIV; break;
+                case '>': t = BIGGER; break;
+                case '<': t = SMALLER; break;
+                case '=': t = EQUAL; break;
+                default:  t = OPERATOR; break;
+            }
+            tokens.push_back({t, std::string(1, c), line});
+            it++; continue;
+        }
+
+        buffer += c; it++;
     }
 
-    if (isString || isChar)
-        throw TokenError("unclosed string/char at EOF");
-
-    if (!buffer.empty())
-        tokens.emplace_back(Token{typeToken(buffer), std::move(buffer), line});
-
+    if (!buffer.empty()) {
+        if (keywords.count(buffer)) {
+            tokens.push_back({keywords.at(buffer), buffer, line});
+        } else {
+            Type t = isDigits(buffer) ? DIGITS : (isFloat(buffer) ? FLOAT : IDENTIFIER);
+            tokens.push_back({t, buffer, line});
+        }
+    }
     return tokens;
 }
 
@@ -637,131 +519,146 @@ static inline auto parser(const Tokens& tokens) -> AST* {
     return AST::turn(tokens);
 }
 
-static SizeType locate = 0;
+static SizeType global_mem = 0;
+static int label_cnt = 0;
+static std::stack<std::unordered_map<std::string, SizeType>> var_scopes;
+static std::stack<std::vector<SizeType>> mem_stack;
 
-enum TypeOf {
-    I8, I16, I32, I64, FLT32, FLT64
-};
-
-enum Kind {
-    BUILTIN,
-    COMPLEX,
-    USERS
-};
-
-union As {
-    TypeOf builtins;
-};
-
-struct ValType {
-    Kind kind;
-    As as;
-
-    ValType() : kind(BUILTIN), as(TypeOf::I8) {}
-    ValType(Kind k, TypeOf t) : kind(k), as(t) {}
-
-    ValType ASMD(ValType vt, SizeType line) const { // addsubmuldiv
-        if (kind == BUILTIN && vt.kind == BUILTIN) {
-            TypeOf to = as.builtins;
-            TypeOf otherTo = vt.as.builtins;
-
-            return ValType(BUILTIN, (to < otherTo) ? otherTo : to);
-        }
-        else {
-            throw KASMError("Cannot support", line);
-        }
-    }
-    // other operatings
-};
-
-auto typeOf(const AST* ast) -> ValType {
-    if (isDigits(ast->str))
-        return {BUILTIN, {I64}};
-    if (isFloat(ast->str))
-        return {BUILTIN, {FLT64}};
+static void enter_scope() { var_scopes.push({}); mem_stack.push({}); }
+static void leave_scope() {
+    for (SizeType addr : mem_stack.top()) global_mem = addr;
+    mem_stack.pop(); var_scopes.pop();
 }
 
-static inline auto kasm(AST* ast) -> std::string {
+static bool find_var(const std::string& name, SizeType& out) {
+    auto tmp = var_scopes;
+    while (!tmp.empty()) {
+        if (tmp.top().count(name)) { out = tmp.top()[name]; return true; }
+        tmp.pop();
+    }
+    return false;
+}
+
+enum TypeOf { I8, I16, I32, I64, FLT32, FLT64 };
+static int type_size(TypeOf t) {
+    switch(t) {
+        case I8: return 1; case I16: return 2; case I32: return 4; case I64: return 8;
+        case FLT32: return 4; case FLT64: return 8; default: return 8;
+    }
+}
+
+static std::string new_label() { return "L" + std::to_string(label_cnt++); }
+
+enum Kind { BUILTIN };
+union As { TypeOf builtins; };
+struct ValType {
+    Kind kind; As as;
+    ValType() : kind(BUILTIN), as(I64) {}
+    ValType(Kind k, TypeOf t) : kind(k), as(t) {}
+    ValType promote(ValType other) const {
+        return ValType(BUILTIN, (TypeOf)std::max(as.builtins, other.as.builtins));
+    }
+};
+
+static std::pair<const char*, const char*> getRegs(TypeOf t) {
+    switch(t) {
+        case I8: return {"reg0", "reg1"}; case I16: return {"reg4", "reg5"};
+        case I32: return {"reg8", "reg9"}; case I64: return {"reg12", "reg13"};
+        case FLT32: return {"reg16", "reg17"}; case FLT64: return {"reg20", "reg21"};
+        default: return {"reg12", "reg13"};
+    }
+}
+
+static std::string typeName(TypeOf t) {
+    switch(t) {
+        case I8: return "ui8"; case I16: return "ui16";
+        case I32: return "ui32"; case I64: return "ui64";
+        case FLT32: return "flt32"; case FLT64: return "flt64";
+        default: return "ui64";
+    }
+}
+
+static std::string opInst(std::string op, TypeOf t) {
+    std::string n = typeName(t);
+    if (op == "+") return "add"+n; if (op == "-") return "sub"+n;
+    if (op == "*") return "mul"+n; if (op == "/") return "div"+n;
+    if (op == ">") return "big"+n; if (op == "<") return "small"+n;
+    if (op == ">=") return "bigeq"+n; if (op == "<=") return "smalleq"+n;
+    if (op == "==") return "eq"+n; if (op == "!=") return "neq"+n;
+    return "add"+n;
+}
+
+static ValType getValueType(const AST* ast) {
+    if (ast->type == DIGITS) return {BUILTIN, I64};
+    if (ast->type == FLOAT) return {BUILTIN, FLT64};
+    if (ast->type == IDENTIFIER) {
+        SizeType addr;
+        if (find_var(ast->str, addr)) return {BUILTIN, I64};
+    }
+    return {BUILTIN, I64};
+}
+
+static TypeOf toType(const std::string& s) {
+    std::string u = upper(s);
+    if (u == "I8") return I8; if (u == "I16") return I16;
+    if (u == "I32") return I32; if (u == "I64") return I64;
+    if (u == "FLT32") return FLT32; if (u == "FLT64") return FLT64;
+    return I64;
+}
+
+static inline std::string kasm(AST* ast) {
+    if (!ast) return "";
     std::string res;
+    auto [r1, r2] = getRegs(I64); // r1=reg12, r2=reg13
+    const char* flag = "reg0";
 
     switch (ast->type) {
-    case KASM:
-        res = "; KASM inline\n" + ast->str;
-
-        break;
-    case ALL:
-        for (AST* child : ast->asts)
-            res += kasm(child) + "\n";
-
-        break;
-
-    case EXPR: {
-        std::string& op = ast->str;
-
-        if (op == "+") {
-            std::string str1 = kasm(ast->asts[0]);
-            std::string str2 = kasm(ast->asts[1]);
-
-            typeOf(ast->asts[0]); // TODO
-
-            res = std::string("") + "load ";
-        }
-
-        break;
+        case ALL:
+            for (AST* c : ast->asts) res += kasm(c);
+            break;
+        
+        case DIGITS:
+            res = "mov " + getRegs(getValueType(ast).as.builtins).first + ast->str
+        default: break;
     }
-
-    default:
-        throw KASMError("Unknown type: " + std::to_string(static_cast<int>(ast->type)));
-    }
-
-    delete ast;
-
     return res;
 }
 
-static inline auto usage(const std::string& str) -> void {
-    std::cout << str + " <path> [-o <path>]" << std::endl;
-    exit(EXIT_FAILURE);
+static inline auto usage(const std::string& prog) {
+    std::cout << "usage: " << prog << " <input> -o <out>\n";
+    exit(0);
 }
 
-static inline auto compiler(const std::string& str) -> std::string {
-    AST* ast = parser(lexer(str));
+static inline std::string compiler(const std::string& code) {
+    global_mem = 0;
+    label_cnt = 0;
+    while (!var_scopes.empty()) var_scopes.pop();
+    while (!mem_stack.empty()) mem_stack.pop();
 
-    std::cout << ast->tostring(0) << std::endl;
-
-    return kasm(ast);
+    enter_scope();
+    Tokens tokens = lexer(code);
+    AST* ast = parser(tokens);
+    std::string out = kasm(ast);
+    delete ast;
+    leave_scope();
+    return out;
 }
 
-auto main(int argc, char** _argv) -> int {
-    std::vector<std::string> argv;
-    for (size_t index = 0; index < argc; ++index)
-        argv.push_back(std::string(_argv[index]));
-
-    if (argv.size() < 2)
-        usage(argv[0]);
-
-    std::string inputFile;
-    std::string outputFile = "a.out";
-
-    for (size_t index = 1; index < argv.size(); ++index) {
-        auto& str = argv[index];
-        if (str == "-o") {
-            if (index + 1 >= argv.size()) {
-                std::cerr << "Expected output file after -o\n";
-                usage(argv[0]);
-            }
-            outputFile = argv[++index];
-        }
-        else
-            inputFile = str;
+int main(int argc, char** argv) {
+    if (argc < 2) usage(argv[0]);
+    std::string in, out = "a.kasm";
+    for (int i=1; i<argc; i++) {
+        if (std::string(argv[i]) == "-o" && i+1 < argc)
+            out = argv[++i];
+        else in = argv[i];
     }
-
-    if (inputFile.empty())
-        usage(argv[0]);
-
-    std::string str = readAll(inputFile);
-    std::string string = compiler(str);
-    saveAll(outputFile, string);
-
+    try {
+        std::string code = readAll(in);
+        std::string asmCode = compiler(code);
+        saveAll(out, asmCode);
+        std::cout << "Succeed: " << out << std::endl;
+    } catch (...) {
+        return 1;
+    }
     return 0;
 }
