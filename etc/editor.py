@@ -101,11 +101,11 @@ class SimpleEditor:
 
         middle: str = '|'.join(newList)
         
-        self.keywords = (r'\b(mov|go|goes|gous|goesus|putchar|str|load|strus|loadus|pors|cors|purs|label|' +
+        self.keywords = (r'\b(mov|go|goes|gous|goesus|putchar|str|load|strus|loadus|pors|cors|purs|label|if|' +
                          middle + r'|halt|' +
                          r'from|to' +
                          r')\b')
-        self.register_pattern = re.compile(r'\b' + '|'.join(f'reg{i}' for i in range(15)) + r'\b')
+        self.register_pattern = re.compile(r'\b' + '|'.join(f'reg{15 - i}' for i in range(16)) + r'\b')
         self.id_pattern = re.compile(r'\b(?:\w|_)(?:\w|_|\d)*\b')
 
     def highlight_syntax(self, event=None):

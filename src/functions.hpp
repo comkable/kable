@@ -38,8 +38,8 @@
 
 #define ARGS ui8* args, SizeType& i
 
-using chars = std::vector<char>;
-using Function = std::function<void(ui8*, SizeType&)>;
+using chars = std::vector<ui8>;
+using Function = void(*)(ui8*, SizeType&);
 using location = ui32;
 using Reg = ui8;
 
@@ -115,84 +115,74 @@ static inline void showMemory() {
     }
 #endif
 
-static inline ui8 readI8(const ui8* data) {
+static inline ui8 readI8(const ui8* data) noexcept {
     return *data;
 }
 
-static inline ui16 readI16(const ui8* data) {
-    ui16 val = *reinterpret_cast<const ui16*>(data);
-
-    if constexpr (std::endian::native == std::endian::big)
-        val = __builtin_bswap16(val);
-
+static inline ui16 readI16(const ui8* data) noexcept {
+    ui16 val;
+    std::memcpy(&val, data, 2);
+    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap16(val);
     return val;
 }
 
-static inline ui32 readI32(const ui8* data) {
-    ui32 val = *reinterpret_cast<const ui32*>(data);
-
-    if constexpr (std::endian::native == std::endian::big)
-        val = __builtin_bswap32(val);
-
+static inline ui32 readI32(const ui8* data) noexcept {
+    ui32 val;
+    std::memcpy(&val, data, 4);
+    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap32(val);
     return val;
 }
 
-static inline ui64 readI64(const ui8* data) {
-    ui64 val = *reinterpret_cast<const ui64*>(data);
-
-    if constexpr (std::endian::native == std::endian::big)
-        val = __builtin_bswap64(val);
-
+static inline ui64 readI64(const ui8* data) noexcept {
+    ui64 val;
+    std::memcpy(&val, data, 8);
+    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap64(val);
     return val;
 }
 
-static inline ui64 readFlt32(const ui8* data) {
-    float val = *reinterpret_cast<const float*>(data);
-
-    if constexpr (std::endian::native == std::endian::big)
-        val = __builtin_bswap32(val);
-
-    return val;
+static inline float readFlt32(const ui8* data) noexcept {
+    uint32_t u;
+    std::memcpy(&u, data, 4);
+    if constexpr (std::endian::native == std::endian::big) u = __builtin_bswap32(u);
+    float f;
+    std::memcpy(&f, &u, 4);
+    return f;
 }
 
-static inline ui64 readFlt64(const ui8* data) {
-    double val = *reinterpret_cast<const double*>(data);
-
-    if constexpr (std::endian::native == std::endian::big)
-        val = __builtin_bswap64(val);
-
-    return val;
+static inline double readFlt64(const ui8* data) noexcept {
+    uint64_t u;
+    std::memcpy(&u, data, 8);
+    if constexpr (std::endian::native == std::endian::big) u = __builtin_bswap64(u);
+    double d;
+    std::memcpy(&d, &u, 8);
+    return d;
 }
 
 #define readReg(d) readI8(d)
 
-static inline void regWrite(const void* data, Reg reg) {
+static inline void regWrite(const void* data, Reg reg) noexcept {
     switch (reg) {
-    case 0x0: regByte1Number1 = readI8(static_cast<const ui8*>(data)); break;
-    case 0x1: regByte1Number2 = readI8(static_cast<const ui8*>(data)); break;
-    case 0x2: regByte1Number3 = readI8(static_cast<const ui8*>(data)); break;
-    case 0x3: regByte1Number4 = readI8(static_cast<const ui8*>(data)); break;
-
-    case 0x4: regByte2Number1 = readI16(static_cast<const ui8*>(data)); break;
-    case 0x5: regByte2Number2 = readI16(static_cast<const ui8*>(data)); break;
-    case 0x6: regByte2Number3 = readI16(static_cast<const ui8*>(data)); break;
-    case 0x7: regByte2Number4 = readI16(static_cast<const ui8*>(data)); break;
-
-    case 0x8: regByte4Number1 = readI32(static_cast<const ui8*>(data)); break;
-    case 0x9: regByte4Number2 = readI32(static_cast<const ui8*>(data)); break;
-    case 0xa: regByte4Number3 = readI32(static_cast<const ui8*>(data)); break;
-    case 0xb: regByte4Number4 = readI32(static_cast<const ui8*>(data)); break;
-
-    case 0xc: regByte8Number1 = readI64(static_cast<const ui8*>(data)); break;
-    case 0xd: regByte8Number2 = readI64(static_cast<const ui8*>(data)); break;
-    case 0xe: regByte8Number3 = readI64(static_cast<const ui8*>(data)); break;
-    case 0xf: regByte8Number4 = readI64(static_cast<const ui8*>(data)); break;
-
-    default: printf("Unknown reg: %d", static_cast<int>(reg)); exit(EXIT_FAILURE);
+        case 0x0: std::memcpy(&regByte1Number1, data, 1); break;
+        case 0x1: std::memcpy(&regByte1Number2, data, 1); break;
+        case 0x2: std::memcpy(&regByte1Number3, data, 1); break;
+        case 0x3: std::memcpy(&regByte1Number4, data, 1); break;
+        case 0x4: std::memcpy(&regByte2Number1, data, 2); break;
+        case 0x5: std::memcpy(&regByte2Number2, data, 2); break;
+        case 0x6: std::memcpy(&regByte2Number3, data, 2); break;
+        case 0x7: std::memcpy(&regByte2Number4, data, 2); break;
+        case 0x8: std::memcpy(&regByte4Number1, data, 4); break;
+        case 0x9: std::memcpy(&regByte4Number2, data, 4); break;
+        case 0xa: std::memcpy(&regByte4Number3, data, 4); break;
+        case 0xb: std::memcpy(&regByte4Number4, data, 4); break;
+        case 0xc: std::memcpy(&regByte8Number1, data, 8); break;
+        case 0xd: std::memcpy(&regByte8Number2, data, 8); break;
+        case 0xe: std::memcpy(&regByte8Number3, data, 8); break;
+        case 0xf: std::memcpy(&regByte8Number4, data, 8); break;
+        default: exit(EXIT_FAILURE);
     }
 }
 
-std::array<void*, 0x10> regTable = {
+void* regTable[0x10] = {
     &regByte1Number1,
     &regByte1Number2,
     &regByte1Number3,
@@ -211,11 +201,11 @@ std::array<void*, 0x10> regTable = {
     &regByte8Number4
 };
 
-static inline void* regRead(Reg reg) {
+static inline void* regRead(Reg reg) noexcept {
     return regTable[reg]; // no error
 }
 
-static inline ui64 regReadI64(Reg reg) {
+static inline ui64 regReadI64(Reg reg) noexcept {
     switch (reg) {
     case 0x0: return regByte1Number1;
     case 0x1: return regByte1Number2;
@@ -241,46 +231,26 @@ static inline ui64 regReadI64(Reg reg) {
     }
 }
 
-static inline void readMemoryToReg(ui64 location, Reg reg) {
+static inline void readMemoryToReg(ui64 location, Reg reg) noexcept {
     regWrite(memory.data() + location, reg);
 }
 
-static inline void write(ui8* buffer, ui64 data, ui8 type) {
+static inline void write(ui8* buffer, ui64 data, ui8 type) noexcept {
     switch (type) {
-        case 0x0:
-            buffer[0] = data & 0xFF;
-            break;
-        case 0x1:
-            buffer[0] = data & 0xFF;
-            buffer[1] = (data >> 8) & 0xFF;
-            break;
-        case 0x2:
-            buffer[0] = data & 0xFF;
-            buffer[1] = (data >> 8) & 0xFF;
-            buffer[2] = (data >> 16) & 0xFF;
-            buffer[3] = (data >> 24) & 0xFF;
-            break;
-        case 0x3:
-            buffer[0] = data & 0xFF;
-            buffer[1] = (data >> 8) & 0xFF;
-            buffer[2] = (data >> 16) & 0xFF;
-            buffer[3] = (data >> 24) & 0xFF;
-            buffer[4] = (data >> 32) & 0xFF;
-            buffer[5] = (data >> 40) & 0xFF;
-            buffer[6] = (data >> 48) & 0xFF;
-            buffer[7] = (data >> 56) & 0xFF;
-            break;
-        default:
-            throw std::runtime_error("Invalid register type: " + std::to_string(type));
+        case 0x0: buffer[0] = data & 0xFF; break;
+        case 0x1: std::memcpy(buffer, &data, 2); break;
+        case 0x2: std::memcpy(buffer, &data, 4); break;
+        case 0x3: std::memcpy(buffer, &data, 8); break;
+        default: exit(EXIT_FAILURE);
     }
 }
 
-static inline void writeMemory(ui64 location, ui64 data, ui8 type) {
+static inline void writeMemory(ui64 location, ui64 data, ui8 type) noexcept {
     write(memory.data() + location, data, type);
 }
 
 template <typename T>
-static inline T readMemory(ui64 location, ui8 type) {
+static inline T readMemory(ui64 location, ui8 type) noexcept {
     switch (type) {
     case 0x00:
         return readI8(memory[location]);
@@ -298,7 +268,7 @@ static inline T readMemory(ui64 location, ui8 type) {
 }
 
 template <typename T>
-static T readLE(const void* ptr) {
+static T readLE(const void* ptr) noexcept {
     T val;
     std::memcpy(&val, ptr, sizeof(T));
 
@@ -312,15 +282,15 @@ static T readLE(const void* ptr) {
 }
 
 template <typename T>
-static T readRegVal(Reg r) {
+static T readRegVal(Reg r) noexcept {
     return readLE<T>(regRead(r));
 }
 
 template <typename Op, typename T>
-static void binaryOp(ARGS) {
-    Reg r1 = readReg(args); args += sizeofReg;
-    Reg r2 = readReg(args); args += sizeofReg;
-    Reg r3 = readReg(args); args += sizeofReg;
+static void binaryOp(ARGS) noexcept {
+    Reg r1 = readReg(args++);
+    Reg r2 = readReg(args++);
+    Reg r3 = readReg(args);
 
     T a = readRegVal<T>(r1);
     T b = readRegVal<T>(r2);
@@ -332,8 +302,8 @@ static void binaryOp(ARGS) {
 
 template <typename Op, typename T>
 static void unaryOp(ARGS) {
-    Reg r1 = readReg(args); args += sizeofReg;
-    Reg r2 = readReg(args); args += sizeofReg;
+    Reg r1 = readReg(args++);
+    Reg r2 = readReg(args);
 
     T a = readRegVal<T>(r1);
     T res = Op{}(a);
@@ -342,33 +312,33 @@ static void unaryOp(ARGS) {
     i++;
 }
 
-struct Add { template <typename T> static void Run(ARGS) { binaryOp<std::plus<T>, T>(args, i); } };
-struct Sub { template <typename T> static void Run(ARGS) { binaryOp<std::minus<T>, T>(args, i); } };
-struct Mul { template <typename T> static void Run(ARGS) { binaryOp<std::multiplies<T>, T>(args, i); } };
-struct Div { template <typename T> static void Run(ARGS) { binaryOp<std::divides<T>, T>(args, i); } };
-struct Big { template <typename T> static void Run(ARGS) { binaryOp<std::greater<T>, T>(args, i); } };
-struct Small { template <typename T> static void Run(ARGS) { binaryOp<std::less<T>, T>(args, i); } };
-struct Equal { template <typename T> static void Run(ARGS) { binaryOp<std::equal_to<T>, T>(args, i); } };
+struct Add { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::plus<T>, T>(args, i); } };
+struct Sub { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::minus<T>, T>(args, i); } };
+struct Mul { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::multiplies<T>, T>(args, i); } };
+struct Div { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::divides<T>, T>(args, i); } };
+struct Big { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::greater<T>, T>(args, i); } };
+struct Small { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::less<T>, T>(args, i); } };
+struct Equal { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::equal_to<T>, T>(args, i); } };
 
-struct And { template <typename T> static void Run(ARGS) { binaryOp<std::bit_and<T>, T>(args, i); } };
-struct Or { template <typename T> static void Run(ARGS) { binaryOp<std::bit_or<T>, T>(args, i); } };
-struct Not { template <typename T> static void Run(ARGS) { unaryOp<std::bit_not<T>, T>(args, i); } };
-struct Xor { template <typename T> static void Run(ARGS) { binaryOp<std::bit_xor<T>, T>(args, i); } };
+struct And { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::bit_and<T>, T>(args, i); } };
+struct Or { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::bit_or<T>, T>(args, i); } };
+struct Not { template <typename T> static void Run(ARGS) noexcept { unaryOp<std::bit_not<T>, T>(args, i); } };
+struct Xor { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::bit_xor<T>, T>(args, i); } };
 
-struct LogicalAnd  { template<typename T> static void Run(ARGS) { binaryOp<std::logical_and<T>, T>(args, i); } };
-struct LogicalOr   { template<typename T> static void Run(ARGS) { binaryOp<std::logical_or<T>, T>(args, i); } };
-struct LogicalNot  { template<typename T> static void Run(ARGS) { unaryOp<std::logical_not<T>, T>(args, i); } };
+struct LogicalAnd  { template<typename T> static void Run(ARGS) noexcept { binaryOp<std::logical_and<T>, T>(args, i); } };
+struct LogicalOr   { template<typename T> static void Run(ARGS) noexcept { binaryOp<std::logical_or<T>, T>(args, i); } };
+struct LogicalNot  { template<typename T> static void Run(ARGS) noexcept { unaryOp<std::logical_not<T>, T>(args, i); } };
 
 struct mov {
-    static void Mov(ARGS) {
-        Reg reg = readReg(args); args += sizeofReg;
+    static void Mov(ARGS) noexcept {
+        Reg reg = readReg(args++);
         regWrite(args, reg);
         i++;
     }
 };
 
 struct putchar {
-    static void Putchar(ARGS) {
+    static void Putchar(ARGS) noexcept {
         Reg reg = readReg(args);
         char c = readRegVal<ui8>(reg);
         ioChar(c);
@@ -377,26 +347,23 @@ struct putchar {
 };
 
 struct goto_ {
-    static void goto__(ARGS) {
+    static void goto__(ARGS) noexcept{
         ui32 c = readI32(args);
         i = c;
     }
 };
 
 struct gotoif {
-    static void gotoif_(ARGS) {
+    static void gotoif_(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        if (readRegVal<ui8>(reg))
-            i = readI32(args + 1);
-        else
-            i++;
+        i = readRegVal<ui8>(reg) ? readI32(args + 1) : i + 1;
     }
 };
 
 struct store {
-    static void Store(ARGS) {
-        Reg r = readReg(args); args += sizeofReg;
+    static void Store(ARGS) noexcept {
+        Reg r = readReg(args++);
         ui32 location = readI32(args);
 
         writeMemory(location, regReadI64(r), r / 4);
@@ -406,8 +373,8 @@ struct store {
 };
 
 struct load {
-    static void Load(ARGS) {
-        Reg reg = readReg(args); args += sizeofReg;
+    static void Load(ARGS) noexcept {
+        Reg reg = readReg(args++);
         ui32 location = readI32(args);
 
         readMemoryToReg(location, reg);
@@ -417,8 +384,8 @@ struct load {
 };
 
 struct storeus {
-    static void Storeus(ARGS) {
-        Reg reg = readReg(args); args += sizeofReg;
+    static void Storeus(ARGS) noexcept {
+        Reg reg = readReg(args++);
         Reg reg2 = readReg(args);
 
         writeMemory(readRegVal<ui32>(reg2), regReadI64(reg), reg2 / 4);
@@ -428,8 +395,8 @@ struct storeus {
 };
 
 struct loadus {
-    static void Loadus(ARGS) {
-        Reg reg = readReg(args); args += sizeofReg;
+    static void Loadus(ARGS) noexcept {
+        Reg reg = readReg(args++);
         Reg reg2 = readReg(args);
 
         readMemoryToReg(readRegVal<ui32>(reg2), reg);
@@ -439,7 +406,7 @@ struct loadus {
 };
 
 struct gotous {
-    static inline void Gotous(ARGS) {
+    static inline void Gotous(ARGS) noexcept {
         Reg reg = readReg(args);
 
         i = readRegVal<ui32>(reg);
@@ -447,19 +414,16 @@ struct gotous {
 };
 
 struct gotoifus {
-    static inline void Gotoifus(ARGS) {
-        Reg reg = readReg(args); args += sizeofReg;
-        Reg reg2 = readReg(args); args += sizeofReg;
+    static inline void Gotoifus(ARGS) noexcept {
+        Reg reg = readReg(args++);
+        Reg reg2 = readReg(args);
 
-        if (readRegVal<ui8>(reg2))
-            i = readRegVal<ui32>(reg);
-        else
-            i++;
+        i = readRegVal<ui8>(reg2) ? readRegVal<ui32>(reg) : i + 1;
     }
 };
 
 struct CORS {
-    static inline void CopyReturnsStack(ARGS) {
+    static inline void CopyReturnsStack(ARGS) noexcept {
         Reg reg = readReg(args);
 
         regWrite(returns.data() + returnsPtr, reg);
@@ -467,28 +431,56 @@ struct CORS {
 };
 
 struct PORS {
-    static inline void PopReturnsStack(ARGS) {
+    static inline void PopReturnsStack(ARGS) noexcept {
         if (returnsPtr)
             returnsPtr--;
     }
 };
 
 struct PURS {
-    static inline void PushReturnsStack(ARGS) {
+    static inline void PushReturnsStack(ARGS) noexcept {
         Reg reg = readReg(args);
 
         returns[returnsPtr] = readRegVal<ui32>(reg);
     }
 };
 
-static inline void cannotUse(ARGS) {
+template<typename T>
+struct TypeName { static std::string name(); };
+
+template<> std::string TypeName<uint8_t>::name()  { return "ui8"; }
+template<> std::string TypeName<uint16_t>::name() { return "ui16"; }
+template<> std::string TypeName<uint32_t>::name() { return "ui32"; }
+template<> std::string TypeName<uint64_t>::name() { return "ui64"; }
+template<> std::string TypeName<float>::name()    { return "flt32"; }
+template<> std::string TypeName<double>::name()   { return "flt64"; }
+
+struct TT { // turn the type
+    template<typename T, typename T2>
+    static inline void Run(ARGS) noexcept {
+        Reg reg = readReg(args++);
+        Reg reg2 = readReg(args);
+        T2 val = static_cast<T2>(readRegVal<T>(reg));
+
+        // std::cout << TypeName<T>::name() << std::endl << TypeName<T2>::name() << std::endl;
+        // std::cout << val << std::endl;
+
+        regWrite(&val, reg2);
+
+        i++;
+    }
+};
+
+static inline void cannotUse(ARGS) noexcept {
     ioString("This cannot be used.\n");
     exit(EXIT_FAILURE);
 }
-// TODO
-std::array<Function, FunctionSize> functions;
 
-static inline void loadFunctions() {
+Function functions[FunctionSize];
+
+static inline void loadFunctions() noexcept {
+    using flt64 = double;
+
     for (Function& function : functions)
         function = &cannotUse;
 
@@ -503,7 +495,7 @@ do {                                             \
     functions[number++] = &name::Run<ui32>;      \
     functions[number++] = &name::Run<ui64>;      \
     functions[number++] = &name::Run<float>;     \
-    functions[number++] = &name::Run<double>;    \
+    functions[number++] = &name::Run<flt64>;     \
 } while (0)
 
 #define CREATE_BITS_FUNCTIONS(name)              \
@@ -514,6 +506,16 @@ do {                                             \
     functions[number++] = &name::Run<ui64>;      \
     number++;                                    \
     number++;                                    \
+} while (0)
+
+#define CREATE_TT_WITH_(type)                    \
+do {                                             \
+    functions[number++] = &TT::Run<type, ui8>;   \
+    functions[number++] = &TT::Run<type, ui16>;  \
+    functions[number++] = &TT::Run<type, ui32>;  \
+    functions[number++] = &TT::Run<type, ui64>;  \
+    functions[number++] = &TT::Run<type, float>; \
+    functions[number++] = &TT::Run<type, flt64>; \
 } while (0)
 
         CREATE_FUNCTIONS(Add);
@@ -543,6 +545,19 @@ do {                                             \
         CREATE_BITS_FUNCTIONS(LogicalOr);
         // 77
         CREATE_BITS_FUNCTIONS(LogicalNot);
+        // 83
+        CREATE_TT_WITH_(ui8);
+        // 89
+        CREATE_TT_WITH_(ui16);
+        // 95
+        CREATE_TT_WITH_(ui32);
+        // 101
+        CREATE_TT_WITH_(ui64);
+        // 107
+        CREATE_TT_WITH_(float);
+        // 113
+        CREATE_TT_WITH_(flt64);
+        // 119
 #endif
 
     functions[0x100] = &mov::Mov;
@@ -568,7 +583,7 @@ do {                                             \
     };
 }
 
-static inline void start() {
+static inline void start() noexcept {
     loadFunctions();
 
     for (ui8& v : memory)

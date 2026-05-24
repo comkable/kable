@@ -29,10 +29,9 @@
 #include <string>
 #include <fstream>
 
-using chars = std::vector<char>;
 using charsIter = chars::iterator;
 
-static inline auto readAll(const std::string& filename) -> chars {
+static inline auto readAll(const std::string& filename) noexcept -> chars {
     std::ifstream ifs(filename, std::ios::binary);
     if (!ifs) {
         std::cerr << "Failed to open file: " << filename << std::endl;
@@ -52,7 +51,7 @@ static inline auto readAll(const std::string& filename) -> chars {
     return cleaned;
 }
 
-static inline auto usage(const std::string& str) -> void {
+static inline auto usage(const std::string& str) noexcept -> void {
     std::cout << str + " <path>" << std::endl;
     exit(EXIT_FAILURE);
 }
@@ -68,24 +67,12 @@ void printHex(const chars& data) {
     std::cout << std::dec << std::nouppercase << std::endl;
 }
 
-static inline void executeLine(chars& cs, SizeType& i) {
-    ui8* dataPtr = reinterpret_cast<ui8*>(cs.data());
-    if (dataPtr == NULL) {
-        printf("The %dth command is NULL.", i + 1);
-        exit(EXIT_FAILURE);
-    }
+static inline auto executeLine(chars& cs, SizeType& i) noexcept -> void {
+    ui8* dataPtr = cs.data();
     ui16 command = readI16(dataPtr);
+    ui8* argsPtr = dataPtr + sizeof(command);
 
-    ui8* argsPtr = reinterpret_cast<ui8*>(dataPtr) + sizeof(command);
-
-    auto& func = functions[command];
-
-    if (!func) {
-        printf("Error: cannot run %u\n", command);
-        exit(EXIT_FAILURE);
-    }
-
-    func(argsPtr, i);
+    functions[command](argsPtr, i);
 
 #ifdef DEBUG
     _sleep(100);
@@ -96,32 +83,15 @@ static inline void executeLine(chars& cs, SizeType& i) {
 
 // std::pair<ui8, chars> -> command is faster
 
-static inline void execute(chars& cs) {
+static inline void execute(chars& cs) noexcept {
     std::vector<chars> lines;
     chars temp;
-    auto begin = cs.begin();
-    auto end = cs.end();
 
-    struct Functions {
-        static auto printLines(const std::vector<chars>& lines) -> void {
-            SizeType lineNum = 0;
-            for (const auto& line : lines) {
-                lineNum++;
-                std::cout << "line " << lineNum << " : ";
-                for (char c : line) {
-                    std::string str = std::to_string(static_cast<ui8>(c));
-                    std::cout << str;
-                    for (ui8 i = 0; i < 4 - str.size(); i++)
-                        std::cout << " ";
-                }
-                std::cout << "\n";
-            }
-            std::cout << std::flush;
-        }
-    };
+    ui8* begin = cs.begin().base();
+    ui8* end = cs.end().base();
 
     while (begin != end) {
-        ui8 num = static_cast<ui8>(*begin);
+        ui8 num = *begin;
         ++begin;
 
         for (; num > 0 && begin != end; --num) {
@@ -131,10 +101,6 @@ static inline void execute(chars& cs) {
 
         lines.push_back(std::move(temp));
     }
-
-#ifdef DEBUG
-    Functions::printLines(lines);
-#endif
 
     for (SizeType i = 0; i < lines.size(); )
         executeLine(lines[i], i);

@@ -204,20 +204,44 @@ static inline chars compiler(const std::string& content) {
         const std::string& cmd = tokens[0];
         chars buffer;
 
-#define MakeCmd(name, code)                            \
-if (cmd == name) {                                     \
-    if (tokens.size() < 5)                             \
+#define MakeCmd(name, code)                     \
+if (cmd == name) {                              \
+    if (tokens.size() < 5)                      \
         throw CompilerError(name " syntax: " name " <reg> <reg> <any-string> <reg>"); \
-    buffer.push_back(code);                            \
-    buffer.push_back(0x00);                            \
-    ui8 r1 = storeg(tokens[1]);                        \
-    ui8 r2 = storeg(tokens[2]);                        \
-    ui8 r3 = storeg(tokens[4]);                        \
-    buffer.push_back(static_cast<char>(r1));           \
-    buffer.push_back(static_cast<char>(r2));           \
-    buffer.push_back(static_cast<char>(r3));           \
-    goto over;                                         \
+    buffer.push_back(code);                     \
+    buffer.push_back(0x00);                     \
+    ui8 r1 = storeg(tokens[1]);                 \
+    ui8 r2 = storeg(tokens[2]);                 \
+    ui8 r3 = storeg(tokens[4]);                 \
+    buffer.push_back(static_cast<char>(r1));    \
+    buffer.push_back(static_cast<char>(r2));    \
+    buffer.push_back(static_cast<char>(r3));    \
+    goto over;                                  \
 }
+
+#define MakeTT(type1, type2, code)              \
+if (cmd == "tt" type1 type2) {                  \
+    if (tokens.size() < 4)                      \
+        throw CompilerError("tt" type1 type2 " syntax: " "tt" type1 type2 " <reg> <any-string> <reg>"); \
+    buffer.push_back(code);                     \
+    buffer.push_back(0x00);                     \
+                                                \
+    ui8 r1 = storeg(tokens[1]);                 \
+    ui8 r2 = storeg(tokens[3]);                 \
+    buffer.push_back(static_cast<char>(r1));    \
+    buffer.push_back(static_cast<char>(r2));    \
+                                                \
+    goto over;                                  \
+}
+
+#define CreateTT(type, code)                    \
+MakeTT(type, "ui8", code + 0)                   \
+MakeTT(type, "ui16", code + 1)                  \
+MakeTT(type, "ui32", code + 2)                  \
+MakeTT(type, "ui64", code + 3)                  \
+MakeTT(type, "flt32", code + 4)                 \
+MakeTT(type, "flt64", code + 5)
+
 
 #define VoidCmd(name)                                 \
 if (cmd == name) {                                    \
@@ -225,7 +249,7 @@ if (cmd == name) {                                    \
 }
 
 #define CreateCmd(name, code)     \
-MakeCmd(name "ui8", code)         \
+MakeCmd(name "ui8", code + 0)     \
 MakeCmd(name "ui16", code + 1)    \
 MakeCmd(name "ui32", code + 2)    \
 MakeCmd(name "ui64", code + 3)    \
@@ -233,7 +257,7 @@ MakeCmd(name "flt32", code + 4)   \
 MakeCmd(name "flt64", code + 5)
 
 #define CreateBitsCmd(name, code)  \
-MakeCmd(name "ui8", code)          \
+MakeCmd(name "ui8", code + 0)      \
 MakeCmd(name "ui16", code + 1)     \
 MakeCmd(name "ui32", code + 2)     \
 MakeCmd(name "ui64", code + 3)     \
@@ -267,6 +291,13 @@ VoidCmd(name "flt64")
         CreateBitsCmd("logicaland", 0x42)
         CreateBitsCmd("logicor", 0x48)
         CreateBitsCmd("logicnot", 0x4e)
+
+        CreateTT("ui8", 0x54)
+        CreateTT("ui16", 0x5a)
+        CreateTT("ui32", 0x60)
+        CreateTT("ui64", 0x66)
+        CreateTT("flt32", 0x6c)
+        CreateTT("flt64", 0x72)
 
         if (cmd == "putchar") {
             if (tokens.size() < 3)
@@ -461,8 +492,7 @@ VoidCmd(name "flt64")
             goto over;
         }
 
-        else
-            throw CompilerError("Unknown command: " + cmd);
+        throw CompilerError("Unknown command: " + cmd);
 
 over:
 

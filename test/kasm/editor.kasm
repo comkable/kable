@@ -1,0 +1,11 @@
+
+mov reg11 from 100000000      ; goal
+mov reg10 from 1       ; adder
+mov reg9 from 0       ; counter
+
+label loop
+    bigui32 reg11 reg9 to reg8
+    ttui32ui8 reg8 to reg0
+    addui32 reg9 reg10 to reg9
+goes to loop if reg0
+
