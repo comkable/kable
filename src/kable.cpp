@@ -540,7 +540,8 @@ static bool find_var(const std::string& name, SizeType& out) {
 }
 
 enum TypeOf { I8, I16, I32, I64, FLT32, FLT64 };
-static int type_size(TypeOf t) {
+
+static SizeType type_size(TypeOf t) {
     switch(t) {
         case I8: return 1; case I16: return 2; case I32: return 4; case I64: return 8;
         case FLT32: return 4; case FLT64: return 8; default: return 8;
@@ -618,7 +619,12 @@ static inline std::string kasm(AST* ast) {
             break;
         
         case DIGITS:
-            res = "mov " + getRegs(getValueType(ast).as.builtins).first + ast->str
+            TypeOf type = getValueType(ast).as.builtins;
+            std::string reg = getRegs(type).first;
+            res = std::string() + "mov " + reg + "from" + ast->str + "\n";
+            res = std::string() + "load " + reg + " to " + std::to_string(global_mem);
+            global_mem += type_size(type);
+            break;
         default: break;
     }
     return res;

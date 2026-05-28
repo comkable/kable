@@ -84,6 +84,24 @@ static inline auto executeLine(chars& cs, SizeType& i) noexcept -> void {
 // std::pair<ui8, chars> -> command is faster
 
 static inline void execute(chars& cs) noexcept {
+    struct Functions {
+        static auto printLines(const std::vector<chars>& lines) -> void {
+            SizeType lineNum = 0;
+            for (const auto& line : lines) {
+                lineNum++;
+                std::cout << "line " << lineNum << " : ";
+                for (char c : line) {
+                    std::string str = std::to_string(static_cast<ui8>(c));
+                    std::cout << str;
+                    for (ui8 i = 0; i < 4 - str.size(); i++)
+                        std::cout << " ";
+                }
+                std::cout << "\n";
+            }
+            std::cout << std::flush;
+        }
+    };
+
     std::vector<chars> lines;
     chars temp;
 
@@ -102,6 +120,10 @@ static inline void execute(chars& cs) noexcept {
         lines.push_back(std::move(temp));
     }
 
+#ifdef DEBUG
+    Functions::printLines(lines);
+#endif
+
     for (SizeType i = 0; i < lines.size(); )
         executeLine(lines[i], i);
 }
@@ -115,11 +137,25 @@ int main(int argc, char** _argv) {
     start();
     std::string inputFile = argv[1];
     chars cs = readAll(inputFile);
+
+#ifdef TTIME
+    auto Tstart = std::chrono::high_resolution_clock::now();
+#endif
     execute(cs);
 
-// #ifdef DEBUG
+#ifdef TTIME
+    auto Tend = std::chrono::high_resolution_clock::now();
+    auto Tduration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(Tend - Tstart);
+    std::cout << "TIME: " << Tduration_ns.count() / 1000000.0f << "ms." << std::endl;
+#endif
+
+    // #ifdef DEBUG
 //     printf("reg0 = %d\n", static_cast<int>(regByte1Number1)); // print the first
 // #endif
+
+#ifdef TIME
+    std::cout << total / 1000000.0f << "ms." << std::endl;
+#endif
 
     return 0;
 }

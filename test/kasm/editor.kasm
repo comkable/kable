@@ -1,5 +1,5 @@
 
-mov reg11 from 100000000      ; goal
+mov reg11 from 10000000      ; goal
 mov reg10 from 1       ; adder
 mov reg9 from 0       ; counter
 

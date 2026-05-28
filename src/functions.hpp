@@ -121,64 +121,75 @@ static inline ui8 readI8(const ui8* data) noexcept {
 
 static inline ui16 readI16(const ui8* data) noexcept {
     ui16 val;
-    std::memcpy(&val, data, 2);
-    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap16(val);
+    std::memcpy(&val, data, sizeof(val));
+    if constexpr (std::endian::native == std::endian::big)
+        val = __builtin_bswap16(val);
     return val;
 }
 
 static inline ui32 readI32(const ui8* data) noexcept {
     ui32 val;
-    std::memcpy(&val, data, 4);
-    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap32(val);
+    std::memcpy(&val, data, sizeof(val));
+    if constexpr (std::endian::native == std::endian::big)
+        val = __builtin_bswap32(val);
     return val;
 }
 
 static inline ui64 readI64(const ui8* data) noexcept {
     ui64 val;
-    std::memcpy(&val, data, 8);
-    if constexpr (std::endian::native == std::endian::big) val = __builtin_bswap64(val);
+    std::memcpy(&val, data, sizeof(val));
+    if constexpr (std::endian::native == std::endian::big)
+        val = __builtin_bswap64(val);
     return val;
 }
 
 static inline float readFlt32(const ui8* data) noexcept {
-    uint32_t u;
-    std::memcpy(&u, data, 4);
-    if constexpr (std::endian::native == std::endian::big) u = __builtin_bswap32(u);
-    float f;
-    std::memcpy(&f, &u, 4);
-    return f;
+    float val;
+    std::memcpy(&val, data, sizeof(val));
+    if constexpr (std::endian::native == std::endian::big) {
+        ui32 u = __builtin_bswap32(std::bit_cast<ui32>(val));
+        val = std::bit_cast<float>(u);
+    }
+    return val;
 }
 
 static inline double readFlt64(const ui8* data) noexcept {
-    uint64_t u;
-    std::memcpy(&u, data, 8);
-    if constexpr (std::endian::native == std::endian::big) u = __builtin_bswap64(u);
-    double d;
-    std::memcpy(&d, &u, 8);
-    return d;
+    double val;
+    std::memcpy(&val, data, sizeof(val));
+    if constexpr (std::endian::native == std::endian::big) {
+        ui64 u = __builtin_bswap64(std::bit_cast<ui64>(val));
+        val = std::bit_cast<double>(u);
+    }
+    return val;
 }
 
 #define readReg(d) readI8(d)
 
 static inline void regWrite(const void* data, Reg reg) noexcept {
+    const auto src = static_cast<const uint8_t*>(data);
+
     switch (reg) {
-        case 0x0: std::memcpy(&regByte1Number1, data, 1); break;
-        case 0x1: std::memcpy(&regByte1Number2, data, 1); break;
-        case 0x2: std::memcpy(&regByte1Number3, data, 1); break;
-        case 0x3: std::memcpy(&regByte1Number4, data, 1); break;
-        case 0x4: std::memcpy(&regByte2Number1, data, 2); break;
-        case 0x5: std::memcpy(&regByte2Number2, data, 2); break;
-        case 0x6: std::memcpy(&regByte2Number3, data, 2); break;
-        case 0x7: std::memcpy(&regByte2Number4, data, 2); break;
-        case 0x8: std::memcpy(&regByte4Number1, data, 4); break;
-        case 0x9: std::memcpy(&regByte4Number2, data, 4); break;
-        case 0xa: std::memcpy(&regByte4Number3, data, 4); break;
-        case 0xb: std::memcpy(&regByte4Number4, data, 4); break;
-        case 0xc: std::memcpy(&regByte8Number1, data, 8); break;
-        case 0xd: std::memcpy(&regByte8Number2, data, 8); break;
-        case 0xe: std::memcpy(&regByte8Number3, data, 8); break;
-        case 0xf: std::memcpy(&regByte8Number4, data, 8); break;
-        default: exit(EXIT_FAILURE);
+        case 0x0: regByte1Number1 = *src; break;
+        case 0x1: regByte1Number2 = *src; break;
+        case 0x2: regByte1Number3 = *src; break;
+        case 0x3: regByte1Number4 = *src; break;
+
+        case 0x4: regByte2Number1 = *reinterpret_cast<const uint16_t*>(src); break;
+        case 0x5: regByte2Number2 = *reinterpret_cast<const uint16_t*>(src); break;
+        case 0x6: regByte2Number3 = *reinterpret_cast<const uint16_t*>(src); break;
+        case 0x7: regByte2Number4 = *reinterpret_cast<const uint16_t*>(src); break;
+
+        case 0x8: regByte4Number1 = *reinterpret_cast<const uint32_t*>(src); break;
+        case 0x9: regByte4Number2 = *reinterpret_cast<const uint32_t*>(src); break;
+        case 0xa: regByte4Number3 = *reinterpret_cast<const uint32_t*>(src); break;
+        case 0xb: regByte4Number4 = *reinterpret_cast<const uint32_t*>(src); break;
+
+        case 0xc: regByte8Number1 = *reinterpret_cast<const uint64_t*>(src); break;
+        case 0xd: regByte8Number2 = *reinterpret_cast<const uint64_t*>(src); break;
+        case 0xe: regByte8Number3 = *reinterpret_cast<const uint64_t*>(src); break;
+        case 0xf: regByte8Number4 = *reinterpret_cast<const uint64_t*>(src); break;
+
+        default: printf("???: regWrite %d\n", (int)reg); exit(EXIT_FAILURE);
     }
 }
 
@@ -237,11 +248,21 @@ static inline void readMemoryToReg(ui64 location, Reg reg) noexcept {
 
 static inline void write(ui8* buffer, ui64 data, ui8 type) noexcept {
     switch (type) {
-        case 0x0: buffer[0] = data & 0xFF; break;
-        case 0x1: std::memcpy(buffer, &data, 2); break;
-        case 0x2: std::memcpy(buffer, &data, 4); break;
-        case 0x3: std::memcpy(buffer, &data, 8); break;
-        default: exit(EXIT_FAILURE);
+        case 0x0: 
+            *buffer = static_cast<ui8>(data); 
+            break;
+        case 0x1: 
+            *reinterpret_cast<ui16*>(buffer) = static_cast<ui16>(data); 
+            break;
+        case 0x2: 
+            *reinterpret_cast<ui32*>(buffer) = static_cast<ui32>(data); 
+            break;
+        case 0x3: 
+            *reinterpret_cast<ui64*>(buffer) = data; 
+            break;
+        default: 
+            printf("???: write\n"); 
+            exit(EXIT_FAILURE);
     }
 }
 
@@ -286,24 +307,42 @@ static T readRegVal(Reg r) noexcept {
     return readLE<T>(regRead(r));
 }
 
+#if defined(TIME) || defined(TTIME)
+    #include <chrono>
+#endif
+
+#ifdef TIME
+    static SizeType total = 0;
+#endif
+
 template <typename Op, typename T>
-static void binaryOp(ARGS) noexcept {
-    Reg r1 = readReg(args++);
-    Reg r2 = readReg(args++);
-    Reg r3 = readReg(args);
+static inline void binaryOp(ARGS) noexcept {
+    Reg r1 = readReg(args);
+    Reg r2 = readReg(args + 1);
+    Reg r3 = readReg(args + 2);
+
+#ifdef TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
 
     T a = readRegVal<T>(r1);
     T b = readRegVal<T>(r2);
     T res = Op{}(a, b);
+
+#ifdef TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    total += duration_ns.count();
+#endif
 
     regWrite(&res, r3);
     i++;
 }
 
 template <typename Op, typename T>
-static void unaryOp(ARGS) {
-    Reg r1 = readReg(args++);
-    Reg r2 = readReg(args);
+static inline void unaryOp(ARGS) noexcept {
+    Reg r1 = readReg(args);
+    Reg r2 = readReg(args + 1);
 
     T a = readRegVal<T>(r1);
     T res = Op{}(a);
@@ -366,7 +405,7 @@ struct store {
         Reg r = readReg(args++);
         ui32 location = readI32(args);
 
-        writeMemory(location, regReadI64(r), r / 4);
+        writeMemory(location, regReadI64(r), r >> 2);
 
         i++;
     }
@@ -388,7 +427,7 @@ struct storeus {
         Reg reg = readReg(args++);
         Reg reg2 = readReg(args);
 
-        writeMemory(readRegVal<ui32>(reg2), regReadI64(reg), reg2 / 4);
+        writeMemory(readRegVal<ui32>(reg2), regReadI64(reg), reg2 >> 2);
 
         i++;
     }
@@ -426,7 +465,7 @@ struct CORS {
     static inline void CopyReturnsStack(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        regWrite(returns.data() + returnsPtr, reg);
+        returns.data()[returnsPtr] = readRegVal<ui32>(reg);
     }
 };
 
