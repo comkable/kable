@@ -26,7 +26,7 @@ class SimpleEditor:
         self.frame_editor.pack(fill=tk.BOTH, expand=True)
 
         # line number
-        self.line_numbers = tk.Text(self.frame_editor, width=4, bg="#232323", fg="#B4B4B4", font=('Consolas', 12))
+        self.line_numbers = tk.Text(self.frame_editor, width=4, bg="#1f1f1f", fg="#B4B4B4", font=('Consolas', 12))
         self.line_numbers.pack(side=tk.LEFT, fill=tk.Y)
         self.line_numbers.config(state=tk.DISABLED)
 
@@ -40,7 +40,7 @@ class SimpleEditor:
         self.scroll.pack(side=tk.RIGHT, fill=tk.Y)
         self.text_editor.config(yscrollcommand=self.sync_scroll)
 
-        self.text_editor.config(bg='#232323')
+        self.text_editor.config(bg='#1f1f1f')
         self.update_line_numbers()
 
         # highlight
@@ -55,6 +55,8 @@ class SimpleEditor:
         self.root.bind("<Control-plus>", self.zoom_in)
         self.root.bind("<Control-minus>", self.zoom_out)
         self.root.bind("<Control-=>", self.zoom_in)
+        self.root.bind("<Control-s>", self.save_file)
+        self.root.bind("<Control-o>", self.open_file)
 
         self.auto_refresh()
 
@@ -69,9 +71,9 @@ class SimpleEditor:
 
     # functions
     def setup_highlight_tags(self):
-        self.text_editor.tag_configure('keyword', foreground="#ff1100")     # red:    keywords
+        self.text_editor.tag_configure('keyword', foreground="#1f1f83")     # red:    keywords
         self.text_editor.tag_configure('comment', foreground='#a0a0a0')     # grey:   comments
-        self.text_editor.tag_configure('number', foreground='#B4E6B4')      # green:  numbers
+        self.text_editor.tag_configure('number', foreground='#80c0a8')      # green:  numbers
         self.text_editor.tag_configure('registers', foreground="#ffef84")   # yellow: registers
 
         middleList: list[str] = [
@@ -88,7 +90,8 @@ class SimpleEditor:
             'xor',
             'logicaland',
             'logicor',
-            'logicnot'
+            'logicnot',
+            "tt"
         ]
         newList: list[str] = []
         for mid in middleList:
@@ -147,7 +150,7 @@ class SimpleEditor:
         self.line_numbers.yview_moveto(self.text_editor.yview()[0])
 
     # open the file
-    def open_file(self):
+    def open_file(self, event=None):
         path = filedialog.askopenfilename(filetypes=[('all file', '*.*')])
         if not path:
             return
@@ -164,12 +167,11 @@ class SimpleEditor:
             messagebox.showerror('Error', 'canot open the file.')
 
     # save
-    def save_file(self):
+    def save_file(self, event=None):
         if self.current_file:
             content = self.text_editor.get(1.0, tk.END)
             with open(self.current_file, 'w', encoding='utf-8') as f:
                 f.write(content)
-            messagebox.showinfo('Succeed', 'done!')
         else:
             self.save_as()
 

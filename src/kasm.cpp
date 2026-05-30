@@ -513,6 +513,20 @@ VoidCmd(name "flt64")
             goto over;
         }
 
+        if (cmd == "inc") {
+            if (tokens.size() < 3)
+                throw CompilerError("inc syntax: inc <any-string> <reg>");
+
+            buffer.push_back(0x00);
+            buffer.push_back(0x02);
+
+            ui8 reg = storeg(tokens[2]);
+
+            buffer.push_back(static_cast<char>(reg));
+
+            goto over;
+        }
+
         if (cmd == "halt") {
 
             buffer.push_back(0xFF);

@@ -612,6 +612,7 @@ static inline std::string kasm(AST* ast) {
     std::string res;
     auto [r1, r2] = getRegs(I64); // r1=reg12, r2=reg13
     const char* flag = "reg0";
+    std::string reg;
 
     switch (ast->type) {
         case ALL:
@@ -620,7 +621,7 @@ static inline std::string kasm(AST* ast) {
         
         case DIGITS:
             TypeOf type = getValueType(ast).as.builtins;
-            std::string reg = getRegs(type).first;
+            reg = getRegs(type).first;
             res = std::string() + "mov " + reg + "from" + ast->str + "\n";
             res = std::string() + "load " + reg + " to " + std::to_string(global_mem);
             global_mem += type_size(type);

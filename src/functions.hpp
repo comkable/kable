@@ -166,7 +166,7 @@ static inline double readFlt64(const ui8* data) noexcept {
 #define readReg(d) readI8(d)
 
 static inline void regWrite(const void* data, Reg reg) noexcept {
-    const auto src = static_cast<const uint8_t*>(data);
+    const ui8* src = static_cast<const ui8*>(data);
 
     switch (reg) {
         case 0x0: regByte1Number1 = *src; break;
@@ -190,6 +190,32 @@ static inline void regWrite(const void* data, Reg reg) noexcept {
         case 0xf: regByte8Number4 = *reinterpret_cast<const uint64_t*>(src); break;
 
         default: printf("???: regWrite %d\n", (int)reg); exit(EXIT_FAILURE);
+    }
+}
+
+static inline void regWriteI64(ui64 data, Reg reg) noexcept {
+    switch (reg) {
+        case 0x0: regByte1Number1 = data; break;
+        case 0x1: regByte1Number2 = data; break;
+        case 0x2: regByte1Number3 = data; break;
+        case 0x3: regByte1Number4 = data; break;
+
+        case 0x4: regByte2Number1 = data; break;
+        case 0x5: regByte2Number2 = data; break;
+        case 0x6: regByte2Number3 = data; break;
+        case 0x7: regByte2Number4 = data; break;
+
+        case 0x8: regByte4Number1 = data; break;
+        case 0x9: regByte4Number2 = data; break;
+        case 0xa: regByte4Number3 = data; break;
+        case 0xb: regByte4Number4 = data; break;
+
+        case 0xc: regByte8Number1 = data; break;
+        case 0xd: regByte8Number2 = data; break;
+        case 0xe: regByte8Number3 = data; break;
+        case 0xf: regByte8Number4 = data; break;
+
+        default: printf("???: regWriteI64 %d\n", (int)reg); exit(EXIT_FAILURE);
     }
 }
 
@@ -317,6 +343,27 @@ static T readRegVal(Reg r) noexcept {
 
 template <typename Op, typename T>
 static inline void binaryOp(ARGS) noexcept {
+#ifdef TIME
+    auto start = std::chrono::high_resolution_clock::now();
+#endif
+
+    T res = Op{}(
+                    readRegVal<T>(readReg(args)),
+                    readRegVal<T>(readReg(args + 1))
+                );
+
+#ifdef TIME
+    auto end = std::chrono::high_resolution_clock::now();
+    auto duration_ns = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    total += duration_ns.count();
+#endif
+
+    regWrite(&res, readReg(args + 2));
+    i++;
+}
+
+template <typename Op, typename T, typename T2>
+static inline void binaryOp2(ARGS) noexcept {
     Reg r1 = readReg(args);
     Reg r2 = readReg(args + 1);
     Reg r3 = readReg(args + 2);
@@ -327,7 +374,7 @@ static inline void binaryOp(ARGS) noexcept {
 
     T a = readRegVal<T>(r1);
     T b = readRegVal<T>(r2);
-    T res = Op{}(a, b);
+    T2 res = Op{}(a, b);
 
 #ifdef TIME
     auto end = std::chrono::high_resolution_clock::now();
@@ -355,9 +402,9 @@ struct Add { template <typename T> static void Run(ARGS) noexcept { binaryOp<std
 struct Sub { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::minus<T>, T>(args, i); } };
 struct Mul { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::multiplies<T>, T>(args, i); } };
 struct Div { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::divides<T>, T>(args, i); } };
-struct Big { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::greater<T>, T>(args, i); } };
-struct Small { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::less<T>, T>(args, i); } };
-struct Equal { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::equal_to<T>, T>(args, i); } };
+struct Big { template <typename T> static void Run(ARGS) noexcept { binaryOp2<std::greater<T>, T, ui8>(args, i); } };
+struct Small { template <typename T> static void Run(ARGS) noexcept { binaryOp2<std::less<T>, T, ui8>(args, i); } };
+struct Equal { template <typename T> static void Run(ARGS) noexcept { binaryOp2<std::equal_to<T>, T, ui8>(args, i); } };
 
 struct And { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::bit_and<T>, T>(args, i); } };
 struct Or { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::bit_or<T>, T>(args, i); } };
@@ -386,7 +433,7 @@ struct putchar {
 };
 
 struct goto_ {
-    static void goto__(ARGS) noexcept{
+    static void goto__(ARGS) noexcept {
         ui32 c = readI32(args);
         i = c;
     }
@@ -396,7 +443,7 @@ struct gotoif {
     static void gotoif_(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        i = readRegVal<ui8>(reg) ? readI32(args + 1) : i + 1;
+        i = regReadI64(reg) ? readI32(args + 1) : i + 1;
     }
 };
 
@@ -448,7 +495,7 @@ struct gotous {
     static inline void Gotous(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        i = readRegVal<ui32>(reg);
+        i = regReadI64(reg);
     }
 };
 
@@ -457,7 +504,7 @@ struct gotoifus {
         Reg reg = readReg(args++);
         Reg reg2 = readReg(args);
 
-        i = readRegVal<ui8>(reg2) ? readRegVal<ui32>(reg) : i + 1;
+        i = regReadI64(reg2) ? regReadI64(reg) : i + 1;
     }
 };
 
@@ -465,7 +512,9 @@ struct CORS {
     static inline void CopyReturnsStack(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        returns.data()[returnsPtr] = readRegVal<ui32>(reg);
+        returns.data()[returnsPtr] = regReadI64(reg);
+
+        i++;
     }
 };
 
@@ -473,6 +522,8 @@ struct PORS {
     static inline void PopReturnsStack(ARGS) noexcept {
         if (returnsPtr)
             returnsPtr--;
+        
+        i++;
     }
 };
 
@@ -480,7 +531,18 @@ struct PURS {
     static inline void PushReturnsStack(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        returns[returnsPtr] = readRegVal<ui32>(reg);
+        returns[returnsPtr] = regReadI64(reg);
+
+        i++;
+    }
+};
+
+struct inc {
+    static inline void Inc(ARGS) noexcept {
+        Reg reg = readReg(args);
+        regWriteI64(regReadI64(readReg(args)) + 1, reg);
+
+        i++;
     }
 };
 
@@ -616,6 +678,8 @@ do {                                             \
     functions[0x10a] = &PURS::PushReturnsStack;
     functions[0x10b] = &PORS::PopReturnsStack;
     functions[0x10c] = &CORS::CopyReturnsStack;
+
+    functions[0x200] = &inc::Inc;
 
     functions[FunctionSize-1] = [](ARGS) -> void { // halt
         exit(EXIT_SUCCESS);

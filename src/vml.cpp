@@ -85,11 +85,12 @@ static inline auto executeLine(chars& cs, SizeType& i) noexcept -> void {
 
 static inline void execute(chars& cs) noexcept {
     struct Functions {
-        static auto printLines(const std::vector<chars>& lines) -> void {
+        static auto printLines(const std::vector<chars>& lines) noexcept -> void {
             SizeType lineNum = 0;
             for (const auto& line : lines) {
                 lineNum++;
                 std::cout << "line " << lineNum << " : ";
+
                 for (char c : line) {
                     std::string str = std::to_string(static_cast<ui8>(c));
                     std::cout << str;
