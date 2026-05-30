@@ -125,7 +125,7 @@ static inline void execute(chars& cs) noexcept {
     Functions::printLines(lines);
 #endif
 
-    for (SizeType i = 0; i < lines.size(); )
+    for (SizeType i = 0; i < lines.size(); i++)
         executeLine(lines[i], i);
 }
 

@@ -359,7 +359,7 @@ static inline void binaryOp(ARGS) noexcept {
 #endif
 
     regWrite(&res, readReg(args + 2));
-    i++;
+    
 }
 
 template <typename Op, typename T, typename T2>
@@ -383,7 +383,7 @@ static inline void binaryOp2(ARGS) noexcept {
 #endif
 
     regWrite(&res, r3);
-    i++;
+    
 }
 
 template <typename Op, typename T>
@@ -395,7 +395,7 @@ static inline void unaryOp(ARGS) noexcept {
     T res = Op{}(a);
 
     regWrite(&res, r2);
-    i++;
+    
 }
 
 struct Add { template <typename T> static void Run(ARGS) noexcept { binaryOp<std::plus<T>, T>(args, i); } };
@@ -419,7 +419,6 @@ struct mov {
     static void Mov(ARGS) noexcept {
         Reg reg = readReg(args++);
         regWrite(args, reg);
-        i++;
     }
 };
 
@@ -428,14 +427,13 @@ struct putchar {
         Reg reg = readReg(args);
         char c = readRegVal<ui8>(reg);
         ioChar(c);
-        i++;
     }
 };
 
 struct goto_ {
     static void goto__(ARGS) noexcept {
         ui32 c = readI32(args);
-        i = c;
+        i = c - 1;
     }
 };
 
@@ -443,7 +441,7 @@ struct gotoif {
     static void gotoif_(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        i = regReadI64(reg) ? readI32(args + 1) : i + 1;
+        i = regReadI64(reg) ? readI32(args + 1) - 1 : i;
     }
 };
 
@@ -453,8 +451,6 @@ struct store {
         ui32 location = readI32(args);
 
         writeMemory(location, regReadI64(r), r >> 2);
-
-        i++;
     }
 };
 
@@ -464,8 +460,6 @@ struct load {
         ui32 location = readI32(args);
 
         readMemoryToReg(location, reg);
-
-        i++;
     }
 };
 
@@ -475,8 +469,6 @@ struct storeus {
         Reg reg2 = readReg(args);
 
         writeMemory(readRegVal<ui32>(reg2), regReadI64(reg), reg2 >> 2);
-
-        i++;
     }
 };
 
@@ -486,8 +478,6 @@ struct loadus {
         Reg reg2 = readReg(args);
 
         readMemoryToReg(readRegVal<ui32>(reg2), reg);
-
-        i++;
     }
 };
 
@@ -495,7 +485,7 @@ struct gotous {
     static inline void Gotous(ARGS) noexcept {
         Reg reg = readReg(args);
 
-        i = regReadI64(reg);
+        i = regReadI64(reg) - 1;
     }
 };
 
@@ -504,7 +494,7 @@ struct gotoifus {
         Reg reg = readReg(args++);
         Reg reg2 = readReg(args);
 
-        i = regReadI64(reg2) ? regReadI64(reg) : i + 1;
+        i = regReadI64(reg2) ? regReadI64(reg) - 1 : i;
     }
 };
 
@@ -513,8 +503,6 @@ struct CORS {
         Reg reg = readReg(args);
 
         returns.data()[returnsPtr] = regReadI64(reg);
-
-        i++;
     }
 };
 
@@ -522,8 +510,6 @@ struct PORS {
     static inline void PopReturnsStack(ARGS) noexcept {
         if (returnsPtr)
             returnsPtr--;
-        
-        i++;
     }
 };
 
@@ -532,8 +518,6 @@ struct PURS {
         Reg reg = readReg(args);
 
         returns[returnsPtr] = regReadI64(reg);
-
-        i++;
     }
 };
 
@@ -541,8 +525,6 @@ struct inc {
     static inline void Inc(ARGS) noexcept {
         Reg reg = readReg(args);
         regWriteI64(regReadI64(readReg(args)) + 1, reg);
-
-        i++;
     }
 };
 
@@ -567,8 +549,6 @@ struct TT { // turn the type
         // std::cout << val << std::endl;
 
         regWrite(&val, reg2);
-
-        i++;
     }
 };
 
